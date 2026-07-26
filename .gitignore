@@ -1,0 +1,41 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+
+# Node
+**/node_modules/
+**/dist/
+**/.quasar/
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+appsettings.Production.json
+secrets.json
+*.pfx
+*.pem
+*.key
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage and test artifacts
+coverage/
+TestResults/
+*.trx
+
+# Local databases and logs
+*.db
+*.sqlite
+*.log

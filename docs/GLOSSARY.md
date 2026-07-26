@@ -1,0 +1,21 @@
+# Glosario
+
+- **Organization:** empresa cliente y tenant.
+- **Branch:** sucursal de la organización.
+- **Employee:** persona trabajadora.
+- **EmploymentRelationship:** vínculo laboral de un Employee con la organización durante un periodo.
+- **EmployeeAssignment:** asignación a una sucursal y cargo.
+- **JobPosition:** cargo laboral creado por la organización.
+- **UserAccount:** cuenta con acceso al sistema.
+- **SystemRole:** rol técnico de autorización; no es un cargo laboral.
+- **UserBranchAccess:** sucursal que un usuario puede administrar.
+- **EmployeeCase:** expediente laboral genérico.
+- **CaseType:** tipo del expediente.
+- **CaseComment:** comentario administrativo asociado al expediente.
+- **CaseDocument:** archivo adjunto a un expediente.
+- **EmployeeDocument:** documento propio del trabajador.
+- **RefreshSession:** sesión persistente representada por un refresh token hasheado.
+- **SUPER_ADMIN:** usuario con alcance sobre todas las sucursales de su organización.
+- **BRANCH_ADMIN:** usuario limitado a sucursales asignadas y sin acceso a su propio expediente.
+
+Usar estos términos en código y documentación. No alternar con Worker, Staff, Record, File o TenantAccount sin una decisión registrada.
