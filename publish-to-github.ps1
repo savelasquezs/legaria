@@ -1,5 +1,5 @@
 param(
-    [string]$RepositoryName = "gestion-personal",
+    [string]$RepositoryName = "legaria",
     [ValidateSet("private", "public")]
     [string]$Visibility = "private"
 )

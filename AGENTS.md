@@ -207,8 +207,8 @@ Si una interfaz necesita contenido aún no definido, usar un estado vacío hones
 Después de cambios backend:
 
 ```bash
-dotnet build backend/GestionPersonal.sln
-dotnet test backend/GestionPersonal.sln
+dotnet build backend/Legaria.sln
+dotnet test backend/Legaria.sln
 ```
 
 Después de cambios frontend:

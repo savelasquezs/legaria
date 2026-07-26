@@ -58,8 +58,8 @@ Todo bug corregido debe incluir una prueba de regresión cuando sea técnicament
 ## Comandos
 
 ```bash
-dotnet build backend/GestionPersonal.sln
-dotnet test backend/GestionPersonal.sln
+dotnet build backend/Legaria.sln
+dotnet test backend/Legaria.sln
 
 cd frontend
 npm run lint

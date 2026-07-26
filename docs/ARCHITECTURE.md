@@ -25,19 +25,19 @@ HTTP Request
   -> DTO de respuesta
 ```
 
-### GestionPersonal.Domain
+### Legaria.Domain
 
 Contiene entidades, enums pequeños, reglas invariantes y contratos estrictamente propios del dominio. No referencia EF Core, ASP.NET ni proveedores externos.
 
-### GestionPersonal.Application
+### Legaria.Application
 
 Contiene casos de uso, DTO, validadores, interfaces de bordes y autorización de negocio. Se organiza por feature. Puede usar MediatR si se adopta desde el inicio, pero no es obligatorio crear commands y queries ceremoniales para operaciones triviales.
 
-### GestionPersonal.Infrastructure
+### Legaria.Infrastructure
 
 Contiene EF Core, PostgreSQL, implementaciones de servicios, almacenamiento, hash de refresh token y proveedores externos.
 
-### GestionPersonal.API
+### Legaria.API
 
 Contiene controllers, middleware, filtros, configuración de autenticación, OpenAPI y composición de dependencias.
 

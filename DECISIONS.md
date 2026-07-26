@@ -2,6 +2,12 @@
 
 Este archivo documenta decisiones duraderas. Agregar una entrada cuando cambie arquitectura, seguridad, modelo de negocio o una convención que futuras tareas deban respetar.
 
+## 2026-07-26 — Nombre del proyecto
+
+**Decisión:** el producto, el repositorio y los proyectos de código se llamarán Legaria.
+
+**Consecuencia:** la solución .NET usará `Legaria.sln` y los proyectos y namespaces usarán el prefijo `Legaria`.
+
 ## 2026-07-26 — Monorepo inicial
 
 **Decisión:** frontend, backend y documentación vivirán en un solo repositorio.

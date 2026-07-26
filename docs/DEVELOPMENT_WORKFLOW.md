@@ -20,9 +20,9 @@
 Backend:
 
 ```bash
-dotnet format backend/GestionPersonal.sln --verify-no-changes
-dotnet build backend/GestionPersonal.sln
-dotnet test backend/GestionPersonal.sln
+dotnet format backend/Legaria.sln --verify-no-changes
+dotnet build backend/Legaria.sln
+dotnet test backend/Legaria.sln
 ```
 
 Frontend:

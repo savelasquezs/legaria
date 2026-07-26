@@ -1,4 +1,4 @@
-# Frontend
+# Frontend de Legaria
 
 Aplicación web administrativa que será creada con Vue 3, TypeScript y Quasar.
 

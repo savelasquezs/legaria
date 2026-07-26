@@ -1,6 +1,6 @@
-# Gestión de Personal
+# Legaria
 
-SaaS multitenant para administrar trabajadores, sucursales, documentos, expedientes laborales y autenticación segura.
+Legaria es un SaaS multitenant para administrar trabajadores, sucursales, documentos, expedientes laborales y autenticación segura.
 
 ## Estado inicial
 
@@ -19,13 +19,13 @@ Este repositorio inicia con la estructura base y la documentación que gobierna 
 frontend/                 Aplicación web Vue + Quasar
 backend/                  Solución .NET y API
   src/
-    GestionPersonal.API/
-    GestionPersonal.Application/
-    GestionPersonal.Domain/
-    GestionPersonal.Infrastructure/
+    Legaria.API/
+    Legaria.Application/
+    Legaria.Domain/
+    Legaria.Infrastructure/
   tests/
-    GestionPersonal.UnitTests/
-    GestionPersonal.IntegrationTests/
+    Legaria.UnitTests/
+    Legaria.IntegrationTests/
 docs/                     Documentación funcional y técnica
 AGENTS.md                  Reglas obligatorias para Codex y otros agentes
 BUSINESS_RULES.md          Reglas de negocio aprobadas
@@ -50,9 +50,9 @@ El primer incremento funcional será autenticación y autorización segura. Ante
 
 ```bash
 # Backend
-dotnet restore backend/GestionPersonal.sln
-dotnet build backend/GestionPersonal.sln
-dotnet test backend/GestionPersonal.sln
+dotnet restore backend/Legaria.sln
+dotnet build backend/Legaria.sln
+dotnet test backend/Legaria.sln
 
 # Frontend
 cd frontend
