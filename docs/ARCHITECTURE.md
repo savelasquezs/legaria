@@ -31,7 +31,7 @@ Contiene entidades, enums pequeños, reglas invariantes y contratos estrictament
 
 ### Legaria.Application
 
-Contiene casos de uso, DTO, validadores, interfaces de bordes y autorización de negocio. Se organiza por feature. Puede usar MediatR si se adopta desde el inicio, pero no es obligatorio crear commands y queries ceremoniales para operaciones triviales.
+Contiene casos de uso, DTO, validadores, interfaces de bordes y autorización de negocio. Se organiza por feature. La solución inicial no usa MediatR ni commands y queries ceremoniales.
 
 ### Legaria.Infrastructure
 
@@ -64,9 +64,17 @@ Organizar componentes específicos cerca del módulo o página. `components/comm
 - PostgreSQL.
 - EF Core con configuraciones por entidad.
 - Migraciones versionadas en el repositorio.
-- Identificadores consistentes; escoger `Guid` o entero antes de crear entidades y mantener la decisión.
+- Identificadores `Guid`.
 - Fechas persistidas en UTC.
 - Índices y restricciones para unicidad e aislamiento.
+
+## Autenticación
+
+`PlatformUser` y `UserAccount` son raíces de identidad separadas. `RefreshSession`, `AccountToken` y `SecurityAuditEvent` pueden apuntar exactamente a uno de los dos tipos mediante restricciones de base de datos.
+
+La API valida el estado, `security_stamp`, roles y, para tenant, la organización activa en cada request autenticado. `ICurrentUser` expone el tipo de cuenta y solo ofrece `OrganizationId`/`EmployeeId` cuando corresponde.
+
+La infraestructura externa de correo se limita a `IEmailSender`, implementado con Resend. La construcción de plantillas y tokens permanece separada del proveedor.
 
 ## Multitenancy
 

@@ -6,10 +6,11 @@ Priorizar aislamiento multitenant, protección de sesiones y autorización sobre
 
 ## Access token
 
-- JWT firmado con algoritmo aprobado por la plataforma.
-- Duración inicial sugerida: 10 minutos.
-- Validar issuer, audience, firma, lifetime y `ClockSkew` estricto.
-- Claims mínimos: `sub`, `organization_id`, `employee_id` opcional, rol, `security_stamp`, `jti`, `iat`, `nbf`, `exp`.
+- JWT firmado con HMAC SHA-256 y duración de 10 minutos.
+- Validar issuer, audience, firma, lifetime y `ClockSkew=0`.
+- Claims comunes: `sub`, `account_type`, rol, `security_stamp`, `jti`, `iat`, `nbf`, `exp`.
+- Claims tenant: `organization_id` obligatorio y `employee_id` opcional.
+- Un token de plataforma nunca contiene `organization_id`.
 - No incluir datos laborales o sensibles.
 - El frontend lo mantiene en memoria.
 
@@ -22,7 +23,8 @@ Priorizar aislamiento multitenant, protección de sesiones y autorización sobre
 - Rotar en cada uso.
 - Registrar familia y token reemplazado.
 - Detectar reutilización y revocar la familia.
-- Expiración inicial sugerida: siete días.
+- Expiración de siete días.
+- Cookie host-only, `HttpOnly`, `Secure`, `SameSite=Lax` y path `/api/auth`.
 
 ## Endpoints iniciales
 
@@ -31,15 +33,19 @@ Priorizar aislamiento multitenant, protección de sesiones y autorización sobre
 - `POST /api/auth/logout`.
 - `POST /api/auth/logout-all`.
 - `GET /api/auth/me`.
+- `POST /api/auth/verify-email`.
+- `POST /api/auth/resend-verification`.
+- `POST /api/auth/forgot-password`.
+- `POST /api/auth/reset-password`.
 
 ## Login
 
 - Mensaje genérico para credenciales inválidas.
-- Rate limiting por IP y, cuando convenga, por cuenta normalizada.
-- Bloqueo temporal progresivo después de intentos fallidos.
+- Rate limiting por IP: login 5 cada 5 minutos.
+- Bloqueo de cuenta por 15 minutos después de cinco fallos.
 - Reiniciar contador tras éxito.
 - Usar `PasswordHasher<TUser>` o configuración aprobada de ASP.NET Identity.
-- No limitar silenciosamente contraseñas largas a un tamaño inseguro; validar máximo razonable.
+- Validar contraseñas entre 8 y 128 caracteres, sin complejidad de composición obligatoria.
 
 ## Security stamp
 
@@ -50,7 +56,20 @@ Cambiar cuando:
 - se revocan todas las sesiones;
 - cambian permisos críticos si se requiere invalidación inmediata.
 
-La validación puede consultar estado de usuario con una estrategia equilibrada. No agregar una consulta de base de datos por request sin medirla; sí garantizar revocación efectiva para operaciones sensibles.
+La implementación inicial consulta estado, `security_stamp`, roles y organización activa en cada request autenticado para garantizar revocación inmediata.
+
+## Tokens de cuenta y correo
+
+- Valores aleatorios de 256 bits.
+- Persistir únicamente SHA-256 e indexar el hash.
+- Verificación: 24 horas.
+- Restablecimiento: 30 minutos.
+- Uso único; emitir uno nuevo revoca los anteriores del mismo propósito.
+- Recuperación y reenvío responden siempre de forma genérica.
+- Reset y verificación tienen límite de 10 cada 15 minutos; recuperación y reenvío, 3 cada 15 minutos.
+- Resend se usa detrás de `IEmailSender`, con timeout de 10 segundos, cancelación y sin reintentos automáticos.
+- Las plantillas HTML codifican contenido y construyen enlaces desde `Frontend__BaseUrl`.
+- Fallos del proveedor se registran sin correo, contenido, token ni secreto.
 
 ## Autorización
 
@@ -91,6 +110,16 @@ No registrar:
 - datos médicos innecesarios.
 
 Registrar eventos de seguridad con IDs internos, fecha, IP normalizada y resultado, evitando información secreta.
+
+`SecurityAuditEvent` cubre bootstrap, verificación, cambio/restablecimiento de contraseña, cierre de sesiones y reutilización de refresh token. Nunca almacena correo, contraseña, token o clave externa.
+
+## Rate limiting
+
+- Login: 5 solicitudes por IP cada 5 minutos.
+- Recuperación y reenvío: 3 por IP cada 15 minutos.
+- Reset y verificación: 10 por IP cada 15 minutos.
+- Refresh: 30 por IP por minuto.
+- Los rechazos usan HTTP 429 y `ProblemDetails`.
 
 ## Configuración
 

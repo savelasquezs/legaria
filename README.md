@@ -2,22 +2,26 @@
 
 Legaria es un SaaS multitenant para administrar trabajadores, sucursales, documentos, expedientes laborales y autenticación segura.
 
-## Estado inicial
+## Estado actual
 
-Este repositorio inicia con la estructura base y la documentación que gobierna el trabajo de desarrollo. No contiene funcionalidades inventadas ni módulos fuera del alcance aprobado.
+El repositorio contiene el primer incremento funcional:
 
-## Tecnologías objetivo
+- API ASP.NET Core 8 con PostgreSQL y EF Core.
+- Autenticación diferenciada para cuentas de plataforma y cuentas tenant.
+- JWT corto, refresh token rotatorio en cookie segura y recuperación/verificación por correo.
+- Bootstrap transaccional del primer propietario de plataforma.
+- Integración de correo con Resend detrás de `IEmailSender`.
+- Aplicación Vue 3 + Quasar para login, recuperación, restablecimiento y verificación.
+- Pruebas unitarias, de integración con PostgreSQL/Testcontainers y de frontend.
 
-- Backend: ASP.NET Core Web API (.NET 8), Entity Framework Core y PostgreSQL.
-- Frontend: Vue 3, TypeScript, Quasar, Pinia y Axios.
-- Archivos: Firebase Storage o un proveedor equivalente configurado por infraestructura.
-- Autenticación: JWT de corta duración y refresh token rotatorio en cookie HttpOnly.
+Este incremento no incluye registro público, administración de organizaciones, dashboard, planes, pagos ni módulos laborales.
 
 ## Estructura
 
 ```text
-frontend/                 Aplicación web Vue + Quasar
-backend/                  Solución .NET y API
+frontend/                 Vue 3, Quasar, Pinia, Axios y Vitest
+backend/
+  Legaria.sln
   src/
     Legaria.API/
     Legaria.Application/
@@ -27,39 +31,52 @@ backend/                  Solución .NET y API
     Legaria.UnitTests/
     Legaria.IntegrationTests/
 docs/                     Documentación funcional y técnica
-AGENTS.md                  Reglas obligatorias para Codex y otros agentes
+AGENTS.md                  Reglas obligatorias para agentes
 BUSINESS_RULES.md          Reglas de negocio aprobadas
-DECISIONS.md               Registro de decisiones del proyecto
+DECISIONS.md               Registro de decisiones duraderas
 ```
 
-## Lectura obligatoria para agentes
+## Configuración local
 
-1. `AGENTS.md`
-2. `BUSINESS_RULES.md`
-3. `docs/ARCHITECTURE.md`
-4. `docs/SECURITY.md`
-5. `docs/UI_GUIDELINES.md`
-6. `docs/TESTING.md`
-7. El documento específico del módulo que se vaya a modificar.
+1. Copiar `.env.example` a un archivo local no versionado o definir sus variables en el entorno.
+2. Proporcionar PostgreSQL, JWT, Resend, URL del frontend y las credenciales de bootstrap.
+3. Aplicar la migración antes de iniciar la API:
 
-## Inicio esperado
+```powershell
+dotnet ef database update `
+  --project backend/src/Legaria.Infrastructure `
+  --startup-project backend/src/Legaria.API
+```
 
-El primer incremento funcional será autenticación y autorización segura. Antes de implementarlo, Codex debe comprobar que el modelo y las reglas siguen coincidiendo con la documentación.
+4. Iniciar backend y frontend:
 
-## Comandos futuros
+```powershell
+dotnet run --project backend/src/Legaria.API
 
-```bash
-# Backend
-dotnet restore backend/Legaria.sln
+cd frontend
+npm.cmd install
+npm.cmd run dev
+```
+
+El bootstrap se ejecuta al arrancar la API, después de que la migración haya sido aplicada. Si todavía no existe ningún `PlatformUser`, exige las variables `BootstrapOwner__*`, crea un único `OWNER` con correo prevalidado y registra auditoría. Después del primer arranque exitoso debe retirarse `BootstrapOwner__Password` del entorno.
+
+La cookie de refresh siempre es `Secure`; el desarrollo local debe usar HTTPS. Frontend y API se despliegan bajo el mismo sitio y la cookie usa `SameSite=Lax`.
+
+## Verificación
+
+```powershell
+dotnet format backend/Legaria.sln --verify-no-changes
 dotnet build backend/Legaria.sln
 dotnet test backend/Legaria.sln
 
-# Frontend
 cd frontend
-npm install
-npm run lint
-npm run test
-npm run build
+npm.cmd run lint
+npm.cmd run test
+npm.cmd run build
 ```
 
-Los comandos se habilitarán cuando se creen los proyectos reales. No deben simularse resultados mientras las aplicaciones estén vacías.
+Las pruebas de integración requieren un motor Docker operativo para crear PostgreSQL mediante Testcontainers.
+
+## Documentación obligatoria
+
+Antes de modificar el sistema, leer `AGENTS.md`, `BUSINESS_RULES.md` y los documentos relacionados en `docs/`.

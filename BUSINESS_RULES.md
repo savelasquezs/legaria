@@ -133,11 +133,18 @@ Las reglas definitivas de renovación, firma, modificación y terminación aún 
 
 ## Autenticación y sesiones
 
-1. Access token JWT de corta duración.
-2. Refresh token rotatorio en cookie HttpOnly, Secure y con SameSite configurado.
-3. El refresh token no se guarda en `localStorage`.
-4. La base de datos almacena únicamente hash del refresh token.
-5. Reutilizar un refresh token ya rotado revoca su familia de sesión.
-6. Cambiar contraseña, desactivar usuario o revocar sesiones invalida accesos anteriores mediante `security_stamp` o mecanismo equivalente.
-7. Los mensajes de login no deben permitir enumerar cuentas.
-8. Las credenciales y tokens nunca aparecen en logs.
+1. Existen cuentas globales de plataforma (`PlatformUser`) y cuentas de organización (`UserAccount`).
+2. Los correos son globalmente únicos entre ambos tipos de cuenta.
+3. Una cuenta de plataforma nunca pertenece a una organización ni lleva contexto tenant.
+4. El primer `OWNER` se crea por bootstrap y su correo queda prevalidado.
+5. Las contraseñas tienen entre 8 y 128 caracteres, sin reglas artificiales de composición.
+6. Access token JWT de 10 minutos.
+7. Refresh token rotatorio de siete días en cookie host-only, HttpOnly, Secure y `SameSite=Lax`.
+8. El refresh token no se guarda en `localStorage`.
+9. La base de datos almacena únicamente hash del refresh token.
+10. Reutilizar un refresh token ya rotado revoca su familia de sesión.
+11. Cambiar contraseña, desactivar usuario o revocar sesiones invalida accesos anteriores mediante `security_stamp`.
+12. Los mensajes de login, recuperación y reenvío no deben permitir enumerar cuentas.
+13. Las credenciales, correos y tokens nunca aparecen en auditoría ni logs de seguridad.
+14. Los tokens de verificación duran 24 horas y los de restablecimiento 30 minutos; son de uso único y solo se persiste su SHA-256.
+15. Cinco fallos de login bloquean la cuenta durante 15 minutos.

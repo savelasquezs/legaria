@@ -26,8 +26,13 @@ Cubrir:
 
 Obligatorias para:
 
+- bootstrap único y correo prevalidado;
+- login diferenciado de plataforma y tenant;
+- suspensión, correo sin verificar y lockout;
+- claims y ausencia de contexto tenant en JWT de plataforma;
 - login, refresh, rotación y logout;
 - token expirado, revocado o reutilizado;
+- restablecimiento con cambio de stamp, revocación de sesiones y auditoría;
 - 401 versus 403;
 - acceso entre dos organizaciones;
 - acceso de administrador a sucursal no asignada;
@@ -35,7 +40,7 @@ Obligatorias para:
 - consultas por ID que no incluyan recursos de otro tenant;
 - migraciones importantes.
 
-Usar una base PostgreSQL real efímera o Testcontainers cuando se implemente; no confiar únicamente en EF InMemory para comportamiento relacional.
+Usar PostgreSQL real efímero mediante Testcontainers; no confiar únicamente en EF InMemory para comportamiento relacional. La máquina de desarrollo o CI debe disponer de un motor Docker operativo.
 
 ## Frontend
 
@@ -48,6 +53,8 @@ Probar:
 - permisos ocultan o deshabilitan acciones según contrato;
 - renovación de sesión coordina solicitudes concurrentes;
 - formularios conservan datos tras error.
+- guards separan rutas `PLATFORM` y `TENANT`;
+- el access token permanece solo en memoria.
 
 Evitar pruebas atadas a clases CSS internas o estructura irrelevante.
 
@@ -60,6 +67,7 @@ Todo bug corregido debe incluir una prueba de regresión cuando sea técnicament
 ```bash
 dotnet build backend/Legaria.sln
 dotnet test backend/Legaria.sln
+dotnet ef migrations script --idempotent --project backend/src/Legaria.Infrastructure --startup-project backend/src/Legaria.API
 
 cd frontend
 npm run lint

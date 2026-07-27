@@ -60,6 +60,9 @@ No crear columnas específicas de todos los módulos en EmployeeCase.
 
 ## Autenticación
 
+### PlatformUser
+Cuenta global `OWNER` o `PLATFORM_ADMIN`. No contiene organización y su correo normalizado es único.
+
 ### UserAccount
 Cuenta de acceso de una organización, opcionalmente vinculada con Employee.
 
@@ -72,13 +75,25 @@ Sucursales autorizadas para administradores de sucursal.
 ### RefreshSession
 Hash del token, familia, expiración, revocación, reemplazo, IP y user agent.
 
+Debe pertenecer exactamente a un `PlatformUser` o un `UserAccount`. La base aplica un check constraint tanto sobre las claves como sobre `account_type`.
+
+### AccountToken
+Token de verificación o restablecimiento. Guarda únicamente SHA-256, propósito, expiración, consumo y revocación. También pertenece exactamente a un tipo de cuenta.
+
+### SecurityAuditEvent
+Evento persistente para operaciones sensibles. No contiene correo, token ni secreto.
+
 ## Restricciones mínimas
 
 - Employee único por organización, tipo y número de documento.
 - JobPosition único por organización y nombre normalizado.
-- Email de UserAccount único según la estrategia de login que se defina; la primera versión debe decidir si es global o por organización.
+- Email normalizado globalmente único entre `PlatformUser` y `UserAccount`; EF protege cada tabla y Application protege el conjunto.
 - Relaciones y foreign keys deben impedir referencias cruzadas de tenant.
 - Índices para `organization_id` combinado con filtros frecuentes.
+
+## Migración inicial
+
+`InitialIdentityAndAuthentication` crea la fundación de identidad. Las migraciones se aplican de forma explícita antes de iniciar la API; el startup no modifica el esquema.
 
 ## Eliminación
 

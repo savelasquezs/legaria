@@ -58,6 +58,33 @@ Validar límites máximos de `pageSize`. Ordenamiento y filtros usan listas perm
 
 No introducir `/v1` hasta que exista necesidad real de mantener versiones incompatibles. Documentar contratos mediante OpenAPI desde el inicio.
 
+## Autenticación inicial
+
+Todos los contratos viven bajo `/api/auth`:
+
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `POST /api/auth/logout-all`
+- `GET /api/auth/me`
+- `POST /api/auth/verify-email`
+- `POST /api/auth/resend-verification`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
+
+Login y refresh retornan `accessToken`, `expiresAtUtc` y una cuenta tipada. La cuenta contiene `accountType`, identidad y roles; `organizationId` y `employeeId` aparecen únicamente para cuentas tenant.
+
+Los errores de autenticación usan `ProblemDetails` y un `code` estable. Los códigos públicos incluyen:
+
+- `auth.invalid_credentials`
+- `auth.account_locked`
+- `auth.email_not_verified`
+- `auth.token_invalid`
+- `auth.token_expired`
+- `auth.token_used`
+
+Recuperación y reenvío siempre responden con un mensaje genérico, exista o no la cuenta. Refresh y logout consumen la cookie host-only cuyo path es `/api/auth`; no se admite el token en el cuerpo.
+
 ## Idempotencia y concurrencia
 
 No agregar infraestructura genérica de idempotencia. Aplicarla a endpoints que realmente puedan duplicar operaciones sensibles. Usar tokens de concurrencia cuando haya riesgo real de sobrescribir cambios importantes.

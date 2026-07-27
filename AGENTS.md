@@ -75,6 +75,7 @@ Después de cada cambio importante se deben crear pruebas y ejecutar, como míni
 ### Reglas de implementación
 
 - Usar operaciones asíncronas y `CancellationToken` en I/O.
+- Usar `Guid` para los identificadores del modelo.
 - Validar entrada con un mecanismo consistente.
 - Usar fechas UTC en persistencia; convertir solo en bordes de presentación.
 - Nunca confiar en `organizationId`, roles, sucursales o identidad enviados por el frontend.
@@ -82,6 +83,8 @@ Después de cada cambio importante se deben crear pruebas y ejecutar, como míni
 - Evitar consultas N+1 y cargas completas innecesarias.
 - No exponer entidades de EF directamente en la API.
 - No registrar contraseñas, tokens, documentos sensibles ni datos médicos completos en logs.
+- Tratar `PlatformUser` y `UserAccount` como tipos distintos: una cuenta de plataforma nunca tiene `organization_id`.
+- Mantener la unicidad global de correo entre ambos tipos de cuenta en los casos de uso.
 - No ocultar excepciones con `catch` vacío.
 - Responder 401 para falta o invalidez de autenticación y 403 para autenticación válida sin permiso.
 
@@ -189,6 +192,9 @@ Si una interfaz necesita contenido aún no definido, usar un estado vacío hones
 
 - Leer `docs/SECURITY.md` antes de tocar autenticación, autorización o datos sensibles.
 - Los secretos nunca se guardan en el repositorio.
+- No aplicar migraciones automáticamente en producción; ejecutarlas antes del arranque.
+- No enviar correo real desde pruebas. Sustituir siempre `IEmailSender`.
+- No registrar correos, tokens ni secretos en `SecurityAuditEvent`.
 - No desactivar validación TLS, autorización, CORS o protección CSRF para “hacer que funcione”.
 - Toda consulta de negocio debe quedar limitada por organización.
 - El administrador de sucursal no puede consultar ni modificar su propio expediente.

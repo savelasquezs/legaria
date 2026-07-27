@@ -1,21 +1,27 @@
 # Frontend de Legaria
 
-Aplicación web administrativa que será creada con Vue 3, TypeScript y Quasar.
+Aplicación Vue 3 + Quasar con TypeScript estricto, Pinia, Axios, Vue Router, Vitest y Vue Test Utils.
 
-## Estructura esperada
+## Alcance
 
-```text
-src/
-  components/
-  composables/
-  layouts/
-  pages/
-  router/
-  services/
-  stores/
-  types/
+- Login.
+- Recuperación y restablecimiento de contraseña.
+- Verificación y reenvío de correo.
+- Restauración de sesión mediante `/api/auth/refresh`.
+- Rutas mínimas separadas para plataforma (`/platform`) y tenant (`/app`).
+
+El access token vive únicamente en memoria. Axios envía la cookie con credenciales, coordina un solo refresh para solicitudes concurrentes y reintenta cada request como máximo una vez.
+
+## Configuración y comandos
+
+Definir `VITE_API_BASE_URL` con el origen de la API:
+
+```powershell
+npm.cmd install
+npm.cmd run dev
+npm.cmd run lint
+npm.cmd run test
+npm.cmd run build
 ```
 
-Antes de generar el proyecto, leer `../AGENTS.md` y `../docs/UI_GUIDELINES.md`.
-
-No crear pantallas de demostración, datos falsos permanentes ni un sistema de diseño sobredimensionado. El primer módulo debe establecer componentes comunes únicamente cuando exista uso real.
+No almacenar access ni refresh tokens en `localStorage` o `sessionStorage`.

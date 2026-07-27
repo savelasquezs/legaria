@@ -54,7 +54,37 @@ Este archivo documenta decisiones duraderas. Agregar una entrada cuando cambie a
 
 **Decisión:** access token corto en memoria; refresh token rotatorio mediante cookie HttpOnly; hash en base de datos.
 
-**Consecuencia:** el frontend restaura sesión mediante `/auth/refresh` y no persiste refresh tokens en almacenamiento web.
+**Consecuencia:** el frontend restaura sesión mediante `/api/auth/refresh` y no persiste tokens en almacenamiento web.
+
+## 2026-07-26 — Identidad global y tenant separadas
+
+**Decisión:** `PlatformUser` representa cuentas globales `OWNER` y `PLATFORM_ADMIN`; `UserAccount` representa cuentas tenant. Todos los identificadores son `Guid` y el correo es único globalmente entre ambos conjuntos.
+
+**Consecuencia:** los JWT de plataforma no contienen `organization_id`; los JWT tenant siempre conservan su organización y validan que permanezca activa.
+
+## 2026-07-26 — Bootstrap del propietario
+
+**Decisión:** el primer `OWNER` se crea transaccionalmente al arrancar después de aplicar la migración. Su correo nace validado y las variables son obligatorias solo mientras no exista ningún `PlatformUser`.
+
+**Consecuencia:** la contraseña de bootstrap debe retirarse del entorno después de la primera creación exitosa.
+
+## 2026-07-26 — Resend detrás de un límite propio
+
+**Decisión:** el SDK oficial de Resend se encapsula mediante `IEmailSender`; verificación y restablecimiento usan plantillas HTML embebidas y URLs derivadas de `Frontend__BaseUrl`.
+
+**Consecuencia:** las pruebas sustituyen el sender, no hay reintentos automáticos y ningún secreto de Resend se versiona. El remitente compartido de El Señor Arroz solo se probará cuando se proporcionen variables externas.
+
+## 2026-07-26 — Auditoría de seguridad persistente
+
+**Decisión:** bootstrap, verificación, cambios de contraseña, cierres de sesión y reutilización de tokens generan `SecurityAuditEvent` en PostgreSQL.
+
+**Consecuencia:** los eventos contienen identificadores internos y contexto técnico limitado, nunca correos, tokens o secretos.
+
+## 2026-07-26 — Migraciones fuera del startup
+
+**Decisión:** la API no ejecuta migraciones automáticamente.
+
+**Consecuencia:** producción debe ejecutar `dotnet ef database update` antes del arranque; después el startup puede ejecutar el bootstrap.
 
 ## Pendientes deliberados
 

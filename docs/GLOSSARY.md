@@ -7,6 +7,10 @@
 - **EmployeeAssignment:** asignación a una sucursal y cargo.
 - **JobPosition:** cargo laboral creado por la organización.
 - **UserAccount:** cuenta con acceso al sistema.
+- **PlatformUser:** cuenta global de operación de Legaria; no pertenece a una organización.
+- **AccountType:** discriminador `PLATFORM` o `TENANT` usado en identidad y sesiones.
+- **OWNER:** propietario global creado únicamente por bootstrap.
+- **PLATFORM_ADMIN:** administrador global de plataforma.
 - **SystemRole:** rol técnico de autorización; no es un cargo laboral.
 - **UserBranchAccess:** sucursal que un usuario puede administrar.
 - **EmployeeCase:** expediente laboral genérico.
@@ -15,6 +19,9 @@
 - **CaseDocument:** archivo adjunto a un expediente.
 - **EmployeeDocument:** documento propio del trabajador.
 - **RefreshSession:** sesión persistente representada por un refresh token hasheado.
+- **AccountToken:** token de verificación o restablecimiento almacenado únicamente como hash.
+- **SecurityAuditEvent:** registro persistente de un evento de seguridad sin correo, token ni secreto.
+- **SecurityStamp:** valor que invalida JWT y sesiones anteriores cuando cambia la seguridad de una cuenta.
 - **SUPER_ADMIN:** usuario con alcance sobre todas las sucursales de su organización.
 - **BRANCH_ADMIN:** usuario limitado a sucursales asignadas y sin acceso a su propio expediente.
 
