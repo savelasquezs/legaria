@@ -42,10 +42,50 @@ internal sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organ
         builder.ToTable("organizations", table =>
             table.HasCheckConstraint("ck_organizations_status", "status IN ('ACTIVE', 'SUSPENDED')"));
         builder.HasKey(x => x.Id);
-        builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.TradeName).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.LegalName).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.Nit).HasMaxLength(14).IsRequired();
+        builder.Property(x => x.ContactEmail).HasMaxLength(320).IsRequired();
+        builder.Property(x => x.Phone).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.Address).HasMaxLength(250).IsRequired();
+        builder.Property(x => x.MunicipalityCode).HasMaxLength(5).IsFixedLength().IsRequired();
         builder.Property(x => x.Status).HasConversion(
             value => value == OrganizationStatus.Active ? "ACTIVE" : "SUSPENDED",
             value => value == "ACTIVE" ? OrganizationStatus.Active : OrganizationStatus.Suspended);
+        builder.HasIndex(x => x.Nit).IsUnique();
+        builder.HasOne<Municipality>()
+            .WithMany()
+            .HasForeignKey(x => x.MunicipalityCode)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class DepartmentConfiguration : IEntityTypeConfiguration<Department>
+{
+    public void Configure(EntityTypeBuilder<Department> builder)
+    {
+        builder.ToTable("departments");
+        builder.HasKey(x => x.Code);
+        builder.Property(x => x.Code).HasMaxLength(2).IsFixedLength();
+        builder.Property(x => x.Name).HasMaxLength(250).IsRequired();
+    }
+}
+
+internal sealed class MunicipalityConfiguration : IEntityTypeConfiguration<Municipality>
+{
+    public void Configure(EntityTypeBuilder<Municipality> builder)
+    {
+        builder.ToTable("municipalities");
+        builder.HasKey(x => x.Code);
+        builder.Property(x => x.Code).HasMaxLength(5).IsFixedLength();
+        builder.Property(x => x.DepartmentCode).HasMaxLength(2).IsFixedLength().IsRequired();
+        builder.Property(x => x.Name).HasMaxLength(250).IsRequired();
+        builder.Property(x => x.Type).HasMaxLength(50).IsRequired();
+        builder.HasIndex(x => new { x.DepartmentCode, x.Name });
+        builder.HasOne(x => x.Department)
+            .WithMany()
+            .HasForeignKey(x => x.DepartmentCode)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 
@@ -86,6 +126,9 @@ internal sealed class UserAccountConfiguration : IEntityTypeConfiguration<UserAc
         builder.Property(x => x.SecurityStamp).HasMaxLength(64).IsRequired();
         builder.HasIndex(x => x.NormalizedEmail).IsUnique();
         builder.HasIndex(x => new { x.OrganizationId, x.Id }).IsUnique();
+        builder.HasIndex(x => x.OrganizationId)
+            .IsUnique()
+            .HasFilter("\"is_initial_administrator\" = TRUE");
         builder.HasOne<Organization>()
             .WithMany()
             .HasForeignKey(x => x.OrganizationId)
@@ -96,6 +139,38 @@ internal sealed class UserAccountConfiguration : IEntityTypeConfiguration<UserAc
             .HasPrincipalKey(x => new { x.OrganizationId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
         builder.Navigation(x => x.Roles).UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+internal sealed class AccountEmailConfiguration : IEntityTypeConfiguration<AccountEmail>
+{
+    public void Configure(EntityTypeBuilder<AccountEmail> builder)
+    {
+        builder.ToTable("account_emails", table =>
+        {
+            table.HasCheckConstraint(
+                "ck_account_emails_single_account",
+                "num_nonnulls(platform_user_id, user_account_id) = 1");
+            table.HasCheckConstraint(
+                "ck_account_emails_account_type",
+                "(account_type = 'PLATFORM' AND platform_user_id IS NOT NULL AND user_account_id IS NULL) OR " +
+                "(account_type = 'TENANT' AND user_account_id IS NOT NULL AND platform_user_id IS NULL)");
+        });
+        builder.HasKey(x => x.NormalizedEmail);
+        builder.Property(x => x.NormalizedEmail).HasMaxLength(320);
+        builder.Property(x => x.AccountType).HasConversion(
+            value => value == AccountType.Platform ? AccountTypeCodes.Platform : AccountTypeCodes.Tenant,
+            value => value == AccountTypeCodes.Platform ? AccountType.Platform : AccountType.Tenant);
+        builder.HasIndex(x => x.PlatformUserId).IsUnique();
+        builder.HasIndex(x => x.UserAccountId).IsUnique();
+        builder.HasOne<PlatformUser>()
+            .WithMany()
+            .HasForeignKey(x => x.PlatformUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => x.UserAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 
@@ -183,11 +258,19 @@ internal sealed class AccountTokenConfiguration : IEntityTypeConfiguration<Accou
             value => value == AccountType.Platform ? AccountTypeCodes.Platform : AccountTypeCodes.Tenant,
             value => value == AccountTypeCodes.Platform ? AccountType.Platform : AccountType.Tenant);
         builder.Property(x => x.Purpose).HasConversion(
-            value => value == AccountTokenPurpose.EmailVerification ? "EMAIL_VERIFICATION" : "PASSWORD_RESET",
+            value => value == AccountTokenPurpose.EmailVerification
+                ? "EMAIL_VERIFICATION"
+                : value == AccountTokenPurpose.PasswordReset
+                    ? "PASSWORD_RESET"
+                    : "TENANT_INVITATION",
             value => value == "EMAIL_VERIFICATION"
                 ? AccountTokenPurpose.EmailVerification
-                : AccountTokenPurpose.PasswordReset);
+                : value == "PASSWORD_RESET"
+                    ? AccountTokenPurpose.PasswordReset
+                    : AccountTokenPurpose.TenantInvitation);
         builder.Property(x => x.TokenHash).HasMaxLength(64).IsRequired();
+        builder.Property(x => x.UsedAt).IsConcurrencyToken();
+        builder.Property(x => x.RevokedAt).IsConcurrencyToken();
         builder.Property(x => x.CreatedByIp).HasMaxLength(64);
         builder.HasIndex(x => x.TokenHash).IsUnique();
         builder.HasIndex(x => new { x.PlatformUserId, x.Purpose, x.ExpiresAt });
@@ -219,6 +302,7 @@ internal sealed class SecurityAuditEventConfiguration : IEntityTypeConfiguration
         builder.HasIndex(x => x.CreatedAt);
         builder.HasIndex(x => x.PlatformUserId);
         builder.HasIndex(x => x.UserAccountId);
+        builder.HasIndex(x => x.OrganizationId);
         builder.HasOne<PlatformUser>()
             .WithMany()
             .HasForeignKey(x => x.PlatformUserId)
@@ -226,6 +310,10 @@ internal sealed class SecurityAuditEventConfiguration : IEntityTypeConfiguration
         builder.HasOne<UserAccount>()
             .WithMany()
             .HasForeignKey(x => x.UserAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(x => x.OrganizationId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

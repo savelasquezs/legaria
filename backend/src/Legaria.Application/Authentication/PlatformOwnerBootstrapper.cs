@@ -37,6 +37,7 @@ public sealed class PlatformOwnerBootstrapper(
             secureTokenService.GenerateSecurityStamp(),
             now);
         repository.AddPlatformUser(owner);
+        repository.AddAccountEmail(AccountEmail.ForPlatform(normalizedEmail, owner.Id, now));
         repository.AddAuditEvent(SecurityAuditEvent.Create(
             "PLATFORM_OWNER_BOOTSTRAPPED",
             "SUCCESS",

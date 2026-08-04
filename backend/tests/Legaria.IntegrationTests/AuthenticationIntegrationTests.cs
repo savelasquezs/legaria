@@ -219,7 +219,16 @@ public sealed class AuthenticationIntegrationTests(PostgreSqlFixture fixture)
         await using var context = fixture.CreateDbContext();
         var services = CreateServices(context);
         var now = services.Clock.UtcNow;
-        var organization = Organization.Create("Tenant de verificacion", now);
+        var organization = Organization.Create(
+            "Tenant de verificación",
+            "Tenant de Verificación S.A.S.",
+            "900373913",
+            4,
+            "contacto@tenant.test",
+            "+5716010101",
+            "Calle 1 # 2-3",
+            "11001",
+            now);
         var tenant = UserAccount.Create(
             organization.Id,
             null,
@@ -263,7 +272,16 @@ public sealed class AuthenticationIntegrationTests(PostgreSqlFixture fixture)
         var services = CreateServices(context);
         await BootstrapAsync(services);
         var now = services.Clock.UtcNow;
-        var organization = Organization.Create("Organización A", now);
+        var organization = Organization.Create(
+            "Organización A",
+            "Organización A S.A.S.",
+            "800197268",
+            4,
+            "contacto@organizacion-a.test",
+            "+5716010102",
+            "Carrera 4 # 5-6",
+            "11001",
+            now);
         var employee = Employee.Create(
             organization.Id,
             "CC",
@@ -448,5 +466,11 @@ public sealed class AuthenticationIntegrationTests(PostgreSqlFixture fixture)
 
         public string RenderPasswordReset(string firstName, string resetUrl, TimeSpan expiration) =>
             resetUrl;
+
+        public string RenderTenantInvitation(
+            string firstName,
+            string organizationName,
+            string invitationUrl,
+            TimeSpan expiration) => invitationUrl;
     }
 }

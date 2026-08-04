@@ -14,11 +14,29 @@ Este documento contiene las reglas aprobadas para el sistema de gestión de pers
 
 ## Organizaciones y sucursales
 
-1. Una organización puede tener múltiples sucursales.
-2. Una sucursal puede desactivarse sin borrar su historial.
-3. Un trabajador puede tener asignaciones activas en varias sucursales.
-4. Una asignación puede marcarse como principal.
-5. Solo puede existir una asignación principal activa por relación laboral.
+1. El NIT de una organización es globalmente único, se almacena sin puntuación y separado de su dígito de verificación.
+2. El NIT admite de 6 a 14 dígitos y el DV se valida con módulo 11.
+3. La ubicación se selecciona del catálogo DIVIPOLA versionado; la organización guarda el código de municipio y el departamento se deriva de este.
+4. `OWNER` y `PLATFORM_ADMIN` pueden listar, crear, consultar y editar organizaciones, incluido NIT/DV.
+5. Solo `OWNER` puede suspender o reactivar una organización.
+6. Suspender una organización bloquea inmediatamente login, refresh y JWT tenant, sin eliminar datos ni sesiones; reactivarla recupera el acceso.
+7. Una organización puede tener múltiples sucursales.
+8. Una sucursal puede desactivarse sin borrar su historial.
+9. Un trabajador puede tener asignaciones activas en varias sucursales.
+10. Una asignación puede marcarse como principal.
+11. Solo puede existir una asignación principal activa por relación laboral.
+
+## Aprovisionamiento del primer superadministrador
+
+1. Crear una organización crea en la misma transacción una cuenta tenant no verificada con el único rol `SUPER_ADMIN`.
+2. El primer superadministrador no crea automáticamente un `Employee`; `employee_id` permanece nulo.
+3. La API nunca recibe, genera para mostrar ni devuelve una contraseña conocida del administrador inicial.
+4. La cuenta recibe un hash de un valor aleatorio descartado y se activa mediante invitación de 24 horas.
+5. Aceptar la invitación define la contraseña, verifica el correo, rota `security_stamp` y consume el token una sola vez.
+6. Reenviar revoca inmediatamente todas las invitaciones activas anteriores.
+7. Mientras la cuenta no haya aceptado, `OWNER` o `PLATFORM_ADMIN` pueden corregir nombre, apellido o correo; la corrección genera una invitación nueva.
+8. Si Resend falla, la organización y la cuenta permanecen creadas con estado público `DELIVERY_FAILED` y se permite reenviar.
+9. El correo de contacto de la empresa no es único y puede coincidir con el correo del administrador.
 
 ## Trabajadores y usuarios
 
@@ -148,3 +166,5 @@ Las reglas definitivas de renovación, firma, modificación y terminación aún 
 13. Las credenciales, correos y tokens nunca aparecen en auditoría ni logs de seguridad.
 14. Los tokens de verificación duran 24 horas y los de restablecimiento 30 minutos; son de uso único y solo se persiste su SHA-256.
 15. Cinco fallos de login bloquean la cuenta durante 15 minutos.
+16. `account_emails` reserva de forma central y transaccional el correo normalizado de toda cuenta de plataforma o tenant.
+17. Las invitaciones tenant almacenan únicamente SHA-256 del token y exponen solo `PENDING_DELIVERY`, `SENT`, `DELIVERY_FAILED`, `EXPIRED` o `ACCEPTED`.

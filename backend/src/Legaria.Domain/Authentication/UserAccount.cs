@@ -11,6 +11,7 @@ public sealed class UserAccount
     public Guid Id { get; private set; }
     public Guid OrganizationId { get; private set; }
     public Guid? EmployeeId { get; private set; }
+    public bool IsInitialAdministrator { get; private set; }
     public string Email { get; private set; } = string.Empty;
     public string NormalizedEmail { get; private set; } = string.Empty;
     public string PasswordHash { get; private set; } = string.Empty;
@@ -36,13 +37,15 @@ public sealed class UserAccount
         string lastName,
         string securityStamp,
         bool emailVerified,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        bool isInitialAdministrator = false)
     {
         return new UserAccount
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
             EmployeeId = employeeId,
+            IsInitialAdministrator = isInitialAdministrator,
             Email = email,
             NormalizedEmail = normalizedEmail,
             PasswordHash = passwordHash,
@@ -103,6 +106,27 @@ public sealed class UserAccount
 
     public void RotateSecurityStamp(string securityStamp, DateTimeOffset now)
     {
+        SecurityStamp = securityStamp;
+        UpdatedAt = now;
+    }
+
+    public void UpdatePendingIdentity(
+        string email,
+        string normalizedEmail,
+        string firstName,
+        string lastName,
+        string securityStamp,
+        DateTimeOffset now)
+    {
+        if (EmailVerifiedAt is not null)
+        {
+            throw new InvalidOperationException("La cuenta ya aceptó su invitación.");
+        }
+
+        Email = email;
+        NormalizedEmail = normalizedEmail;
+        FirstName = firstName;
+        LastName = lastName;
         SecurityStamp = securityStamp;
         UpdatedAt = now;
     }

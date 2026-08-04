@@ -86,6 +86,32 @@ Este archivo documenta decisiones duraderas. Agregar una entrada cuando cambie a
 
 **Consecuencia:** producción debe ejecutar `dotnet ef database update` antes del arranque; después el startup puede ejecutar el bootstrap.
 
+## 2026-08-04 — Aprovisionamiento tenant por invitación
+
+**Decisión:** `OWNER` y `PLATFORM_ADMIN` crean organizaciones junto con una cuenta inicial `SUPER_ADMIN` sin contraseña compartida. La cuenta se activa mediante una invitación de un solo uso y 24 horas.
+
+**Consecuencia:** la creación se confirma antes del envío; un fallo de Resend conserva el tenant y habilita reenvío. Corregir o reenviar revoca el token anterior.
+
+## 2026-08-04 — Unicidad global de correos en base de datos
+
+**Decisión:** `account_emails` es el registro central cuya clave primaria es `normalized_email`; referencia exactamente una cuenta de plataforma o tenant.
+
+**Motivo:** dos índices en tablas separadas no evitan carreras entre tipos de cuenta.
+
+**Consecuencia:** bootstrap, aprovisionamiento y corrección de cuentas deben crear o mover la reserva dentro de su transacción.
+
+## 2026-08-04 — Organización legal y DIVIPOLA congelado
+
+**Decisión:** NIT y DV se guardan separados; NIT usa solo dígitos y se valida con módulo 11. La ubicación usa la capa oficial DIVIPOLA MGN 2025 de DANE, congelada en la migración `OrganizationProvisioningAndDivipola`.
+
+**Consecuencia:** la aplicación no consulta DANE durante la operación normal. Una actualización del catálogo requiere otra migración versionada. La migración actual falla deliberadamente si encuentra organizaciones antiguas sin datos empresariales, en lugar de inventarlos.
+
+## 2026-08-04 — Suspensión reversible de organizaciones
+
+**Decisión:** solamente `OWNER` suspende o reactiva. La suspensión invalida inmediatamente el uso de cualquier identidad tenant mediante la validación de organización activa, sin revocar sesiones persistidas.
+
+**Consecuencia:** reactivar recupera acceso y sesiones todavía vigentes sin perder información.
+
 ## Pendientes deliberados
 
 Estas decisiones no están cerradas y no deben inventarse:

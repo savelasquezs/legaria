@@ -7,6 +7,9 @@ import ForgotPasswordPage from '../pages/ForgotPasswordPage.vue'
 import ResetPasswordPage from '../pages/ResetPasswordPage.vue'
 import VerifyEmailPage from '../pages/VerifyEmailPage.vue'
 import SessionPage from '../pages/SessionPage.vue'
+import AcceptInvitationPage from '../pages/AcceptInvitationPage.vue'
+import PlatformOrganizationsPage from '../pages/PlatformOrganizationsPage.vue'
+import OrganizationFormPage from '../pages/OrganizationFormPage.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -44,10 +47,27 @@ export const router = createRouter({
       meta: { public: true },
     },
     {
+      path: '/accept-invitation',
+      name: 'accept-invitation',
+      component: AcceptInvitationPage,
+      meta: { public: true },
+    },
+    {
       path: '/platform',
       name: 'platform',
-      component: SessionPage,
-      props: { platform: true },
+      component: PlatformOrganizationsPage,
+      meta: { accountType: 'PLATFORM' },
+    },
+    {
+      path: '/platform/organizations/new',
+      name: 'organization-create',
+      component: OrganizationFormPage,
+      meta: { accountType: 'PLATFORM' },
+    },
+    {
+      path: '/platform/organizations/:id',
+      name: 'organization-detail',
+      component: OrganizationFormPage,
       meta: { accountType: 'PLATFORM' },
     },
     {

@@ -49,4 +49,17 @@ describe('authentication route guards', () => {
     await router.push('/forgot-password')
     expect(router.currentRoute.value.path).toBe('/platform')
   })
+
+  it('keeps invitation acceptance public and protects organization details', async () => {
+    await router.push('/accept-invitation?token=invitation')
+    expect(router.currentRoute.value.name).toBe('accept-invitation')
+
+    await router.push('/platform/organizations/4cef9d70-11a5-4be3-a5bf-8f96ecbe1715')
+    expect(router.currentRoute.value.name).toBe('login')
+
+    const auth = useAuthStore(pinia)
+    auth.account = platformAccount
+    await router.push('/platform/organizations/4cef9d70-11a5-4be3-a5bf-8f96ecbe1715')
+    expect(router.currentRoute.value.name).toBe('organization-detail')
+  })
 })

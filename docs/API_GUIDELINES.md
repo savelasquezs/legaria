@@ -71,6 +71,7 @@ Todos los contratos viven bajo `/api/auth`:
 - `POST /api/auth/resend-verification`
 - `POST /api/auth/forgot-password`
 - `POST /api/auth/reset-password`
+- `POST /api/auth/accept-invitation`
 
 Login y refresh retornan `accessToken`, `expiresAtUtc` y una cuenta tipada. La cuenta contiene `accountType`, identidad y roles; `organizationId` y `employeeId` aparecen únicamente para cuentas tenant.
 
@@ -84,6 +85,30 @@ Los errores de autenticación usan `ProblemDetails` y un `code` estable. Los có
 - `auth.token_used`
 
 Recuperación y reenvío siempre responden con un mensaje genérico, exista o no la cuenta. Refresh y logout consumen la cookie host-only cuyo path es `/api/auth`; no se admite el token en el cuerpo.
+
+## Organizaciones de plataforma
+
+| Método | Ruta | Política |
+| --- | --- | --- |
+| `GET` | `/api/platform/organizations` | `OWNER`, `PLATFORM_ADMIN` |
+| `POST` | `/api/platform/organizations` | `OWNER`, `PLATFORM_ADMIN` |
+| `GET` | `/api/platform/organizations/{id}` | `OWNER`, `PLATFORM_ADMIN` |
+| `PUT` | `/api/platform/organizations/{id}` | `OWNER`, `PLATFORM_ADMIN` |
+| `POST` | `/api/platform/organizations/{id}/suspend` | `OWNER` |
+| `POST` | `/api/platform/organizations/{id}/reactivate` | `OWNER` |
+| `PUT` | `/api/platform/organizations/{id}/initial-admin` | `OWNER`, `PLATFORM_ADMIN` |
+| `POST` | `/api/platform/organizations/{id}/initial-admin/invitations` | `OWNER`, `PLATFORM_ADMIN` |
+| `GET` | `/api/catalogs/departments` | usuario de plataforma |
+| `GET` | `/api/catalogs/departments/{code}/municipalities` | usuario de plataforma |
+
+El listado acepta `page` (1), `pageSize` (20, máximo 100), `search` y `status=ACTIVE|SUSPENDED`. Crear responde `201` con `Location`; nunca recibe contraseña. Los estados públicos de invitación son `PENDING_DELIVERY`, `SENT`, `DELIVERY_FAILED`, `EXPIRED` y `ACCEPTED`.
+
+Códigos estables adicionales:
+
+- `organization.invalid_nit`, `organization.duplicate_nit`, `organization.invalid_municipality`.
+- `organization.invalid_status_transition`, `organization.initial_admin_already_accepted`.
+- `account.duplicate_email`.
+- `invitation.invalid`, `invitation.expired`, `invitation.used`, `invitation.organization_suspended`.
 
 ## Idempotencia y concurrencia
 

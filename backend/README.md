@@ -18,7 +18,7 @@ tests/
 
 ## Base de datos
 
-La migración inicial es `InitialIdentityAndAuthentication`. La API no aplica migraciones automáticamente:
+La migración inicial es `InitialIdentityAndAuthentication` y la versión actual llega hasta `OrganizationProvisioningAndDivipola`. La API no aplica migraciones automáticamente:
 
 ```powershell
 dotnet ef database update `

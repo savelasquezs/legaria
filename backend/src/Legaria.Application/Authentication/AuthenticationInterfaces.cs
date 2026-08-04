@@ -38,6 +38,7 @@ public interface IAuthenticationRepository
         DateTimeOffset now,
         CancellationToken cancellationToken);
     void AddPlatformUser(PlatformUser platformUser);
+    void AddAccountEmail(AccountEmail accountEmail);
     void AddRefreshSession(RefreshSession refreshSession);
     void AddAccountToken(AccountToken accountToken);
     void AddAuditEvent(SecurityAuditEvent auditEvent);
@@ -96,6 +97,7 @@ public interface IEmailTemplateRenderer
 {
     string RenderVerification(string firstName, string verificationUrl, TimeSpan expiration);
     string RenderPasswordReset(string firstName, string resetUrl, TimeSpan expiration);
+    string RenderTenantInvitation(string firstName, string organizationName, string invitationUrl, TimeSpan expiration);
 }
 
 public interface IPlatformOwnerBootstrapper

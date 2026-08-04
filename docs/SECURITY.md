@@ -37,6 +37,7 @@ Priorizar aislamiento multitenant, protección de sesiones y autorización sobre
 - `POST /api/auth/resend-verification`.
 - `POST /api/auth/forgot-password`.
 - `POST /api/auth/reset-password`.
+- `POST /api/auth/accept-invitation`.
 
 ## Login
 
@@ -63,6 +64,7 @@ La implementación inicial consulta estado, `security_stamp`, roles y organizaci
 - Valores aleatorios de 256 bits.
 - Persistir únicamente SHA-256 e indexar el hash.
 - Verificación: 24 horas.
+- Invitación tenant: 24 horas.
 - Restablecimiento: 30 minutos.
 - Uso único; emitir uno nuevo revoca los anteriores del mismo propósito.
 - Recuperación y reenvío responden siempre de forma genérica.
@@ -70,6 +72,8 @@ La implementación inicial consulta estado, `security_stamp`, roles y organizaci
 - Resend se usa detrás de `IEmailSender`, con timeout de 10 segundos, cancelación y sin reintentos automáticos.
 - Las plantillas HTML codifican contenido y construyen enlaces desde `Frontend__BaseUrl`.
 - Fallos del proveedor se registran sin correo, contenido, token ni secreto.
+- El estado de entrega de una invitación se persiste después del commit; el fallo de correo no revierte la organización.
+- Aceptar una invitación establece la contraseña elegida, verifica el correo y rota `security_stamp` en una sola transacción.
 
 ## Autorización
 
@@ -78,6 +82,8 @@ La implementación inicial consulta estado, `security_stamp`, roles y organizaci
 - `BRANCH_ADMIN` no accede a su propio expediente.
 - 404 puede usarse para evitar revelar recursos fuera del alcance.
 - Un rol nunca reemplaza validación de organización.
+- `OWNER` y `PLATFORM_ADMIN` administran datos de organizaciones; solo `OWNER` puede suspender o reactivar.
+- La organización activa se comprueba en login, refresh y cada JWT tenant autenticado.
 
 ## Multitenancy
 

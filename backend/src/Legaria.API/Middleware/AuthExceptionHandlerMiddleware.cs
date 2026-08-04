@@ -1,4 +1,5 @@
 using Legaria.Application.Authentication;
+using Legaria.Application.Organizations;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Legaria.API.Middleware;
@@ -16,6 +17,17 @@ public sealed class AuthExceptionHandlerMiddleware(
         catch (AuthException exception)
         {
             await WriteProblemAsync(context, exception);
+        }
+        catch (OrganizationException exception)
+        {
+            var status = exception.Kind switch
+            {
+                OrganizationErrorKind.NotFound => StatusCodes.Status404NotFound,
+                OrganizationErrorKind.Conflict => StatusCodes.Status409Conflict,
+                OrganizationErrorKind.Forbidden => StatusCodes.Status403Forbidden,
+                _ => StatusCodes.Status400BadRequest
+            };
+            await WriteProblemAsync(context, status, exception.Code, exception.Message);
         }
         catch (InvalidOperationException exception)
         {

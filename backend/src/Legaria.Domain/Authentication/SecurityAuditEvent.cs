@@ -11,6 +11,7 @@ public sealed class SecurityAuditEvent
     public AccountType? AccountType { get; private set; }
     public Guid? PlatformUserId { get; private set; }
     public Guid? UserAccountId { get; private set; }
+    public Guid? OrganizationId { get; private set; }
     public string Outcome { get; private set; } = string.Empty;
     public string? IpAddress { get; private set; }
     public string? UserAgent { get; private set; }
@@ -24,7 +25,8 @@ public sealed class SecurityAuditEvent
         Guid? platformUserId = null,
         Guid? userAccountId = null,
         string? ipAddress = null,
-        string? userAgent = null)
+        string? userAgent = null,
+        Guid? organizationId = null)
     {
         return new SecurityAuditEvent
         {
@@ -33,6 +35,7 @@ public sealed class SecurityAuditEvent
             AccountType = accountType,
             PlatformUserId = platformUserId,
             UserAccountId = userAccountId,
+            OrganizationId = organizationId,
             Outcome = outcome,
             IpAddress = ipAddress,
             UserAgent = userAgent,

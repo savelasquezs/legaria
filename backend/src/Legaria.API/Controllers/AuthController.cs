@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Legaria.Application.Authentication;
 using Legaria.Application.Configuration;
+using Legaria.Application.Organizations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -11,6 +12,7 @@ namespace Legaria.API.Controllers;
 [Route("api/auth")]
 public sealed class AuthController(
     IAuthenticationService authenticationService,
+    IOrganizationService organizationService,
     ICurrentUser currentUser,
     FrontendOptions frontendOptions) : ControllerBase
 {
@@ -135,6 +137,20 @@ public sealed class AuthController(
         return NoContent();
     }
 
+    [HttpPost("accept-invitation")]
+    [AllowAnonymous]
+    [EnableRateLimiting("account-token")]
+    public async Task<IActionResult> AcceptInvitation(
+        AcceptInvitationInput input,
+        CancellationToken cancellationToken)
+    {
+        await organizationService.AcceptInvitationAsync(
+            new AcceptInvitationRequest(input.Token, input.NewPassword),
+            CreateClientContext(),
+            cancellationToken);
+        return NoContent();
+    }
+
     private ClientContext CreateClientContext() =>
         new(
             HttpContext.Connection.RemoteIpAddress?.ToString(),
@@ -199,6 +215,10 @@ public sealed record TokenInput(
     [Required, MaxLength(256)] string Token);
 
 public sealed record ResetPasswordInput(
+    [Required, MaxLength(256)] string Token,
+    [Required, MinLength(8), MaxLength(128)] string NewPassword);
+
+public sealed record AcceptInvitationInput(
     [Required, MaxLength(256)] string Token,
     [Required, MinLength(8), MaxLength(128)] string NewPassword);
 

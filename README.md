@@ -4,7 +4,7 @@ Legaria es un SaaS multitenant para administrar trabajadores, sucursales, docume
 
 ## Estado actual
 
-El repositorio contiene el primer incremento funcional:
+El repositorio contiene autenticación segura y el módulo de aprovisionamiento tenant:
 
 - API ASP.NET Core 8 con PostgreSQL y EF Core.
 - Autenticación diferenciada para cuentas de plataforma y cuentas tenant.
@@ -12,9 +12,11 @@ El repositorio contiene el primer incremento funcional:
 - Bootstrap transaccional del primer propietario de plataforma.
 - Integración de correo con Resend detrás de `IEmailSender`.
 - Aplicación Vue 3 + Quasar para login, recuperación, restablecimiento y verificación.
+- Consola `/platform` para listar, crear, editar, suspender y reactivar organizaciones.
+- Invitación segura del primer `SUPER_ADMIN`, con catálogo DIVIPOLA MGN 2025 versionado.
 - Pruebas unitarias, de integración con PostgreSQL/Testcontainers y de frontend.
 
-Este incremento no incluye registro público, administración de organizaciones, dashboard, planes, pagos ni módulos laborales.
+Este incremento no incluye registro público, sucursales, trabajadores, administración de usuarios activos, dashboard, planes, pagos ni módulos laborales.
 
 ## Estructura
 

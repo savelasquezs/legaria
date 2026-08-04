@@ -40,11 +40,8 @@ public sealed class AuthenticationRepository(LegariaDbContext dbContext) : IAuth
             item => item.Id == organizationId && item.Status == OrganizationStatus.Active,
             cancellationToken);
 
-    public async Task<bool> EmailExistsAsync(string normalizedEmail, CancellationToken cancellationToken) =>
-        await dbContext.PlatformUsers.AnyAsync(
-            item => item.NormalizedEmail == normalizedEmail,
-            cancellationToken) ||
-        await dbContext.UserAccounts.AnyAsync(
+    public Task<bool> EmailExistsAsync(string normalizedEmail, CancellationToken cancellationToken) =>
+        dbContext.AccountEmails.AnyAsync(
             item => item.NormalizedEmail == normalizedEmail,
             cancellationToken);
 
@@ -104,6 +101,9 @@ public sealed class AuthenticationRepository(LegariaDbContext dbContext) : IAuth
 
     public void AddPlatformUser(PlatformUser platformUser) =>
         dbContext.PlatformUsers.Add(platformUser);
+
+    public void AddAccountEmail(AccountEmail accountEmail) =>
+        dbContext.AccountEmails.Add(accountEmail);
 
     public void AddRefreshSession(RefreshSession refreshSession) =>
         dbContext.RefreshSessions.Add(refreshSession);

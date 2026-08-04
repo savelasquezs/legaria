@@ -5,11 +5,13 @@ import { api } from '../services/api'
 import ForgotPasswordPage from './ForgotPasswordPage.vue'
 import ResetPasswordPage from './ResetPasswordPage.vue'
 import VerifyEmailPage from './VerifyEmailPage.vue'
+import AcceptInvitationPage from './AcceptInvitationPage.vue'
 
 let routeQuery: Record<string, string> = {}
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: routeQuery }),
+  useRouter: () => ({ replace: vi.fn() }),
   RouterLink: {
     props: ['to'],
     template: '<a><slot /></a>',
@@ -54,5 +56,29 @@ describe('authentication pages', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Tu correo quedó verificado.')
+  })
+
+  it('requires an invitation token before choosing a password', () => {
+    const wrapper = mount(AcceptInvitationPage)
+
+    expect(wrapper.text()).toContain('El enlace no contiene una invitación válida.')
+    expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('activates an invited tenant account', async () => {
+    routeQuery = { token: 'tenant-invitation' }
+    const request = vi.spyOn(api, 'post').mockResolvedValue({ data: {} })
+    const wrapper = mount(AcceptInvitationPage)
+    const inputs = wrapper.findAll('input[type="password"]')
+    await inputs[0]!.setValue('nueva-clave-123')
+    await inputs[1]!.setValue('nueva-clave-123')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(request).toHaveBeenCalledWith('/api/auth/accept-invitation', {
+      token: 'tenant-invitation',
+      newPassword: 'nueva-clave-123',
+    })
+    expect(wrapper.text()).toContain('Cuenta activada')
   })
 })

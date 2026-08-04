@@ -3,7 +3,10 @@
 ## Entidades principales
 
 ### Organization
-Tenant propietario de sucursales, usuarios, trabajadores y expedientes.
+Tenant propietario de sucursales, usuarios, trabajadores y expedientes. Conserva nombre comercial, razón social, NIT, DV, contacto, dirección, `municipality_code`, estado y fechas. `nit` tiene índice único global.
+
+### Department y Municipality
+Catálogo oficial DIVIPOLA MGN 2025 congelado. `Municipality` pertenece a `Department`; la organización referencia únicamente el municipio de cinco dígitos.
 
 ### Branch
 Sucursal de una organización. Puede desactivarse, no eliminarse si tiene historial.
@@ -64,7 +67,10 @@ No crear columnas específicas de todos los módulos en EmployeeCase.
 Cuenta global `OWNER` o `PLATFORM_ADMIN`. No contiene organización y su correo normalizado es único.
 
 ### UserAccount
-Cuenta de acceso de una organización, opcionalmente vinculada con Employee.
+Cuenta de acceso de una organización, opcionalmente vinculada con Employee. `is_initial_administrator` identifica la única cuenta aprovisionada durante la creación del tenant.
+
+### AccountEmail
+Registro central de correos de cuenta. `normalized_email` es la clave primaria y cada fila referencia exactamente un `PlatformUser` o un `UserAccount`. El backfill de la migración incorpora las cuentas existentes.
 
 ### SystemRole y UserRole
 Roles iniciales SUPER_ADMIN y BRANCH_ADMIN. Mantener separación del cargo.
@@ -78,7 +84,7 @@ Hash del token, familia, expiración, revocación, reemplazo, IP y user agent.
 Debe pertenecer exactamente a un `PlatformUser` o un `UserAccount`. La base aplica un check constraint tanto sobre las claves como sobre `account_type`.
 
 ### AccountToken
-Token de verificación o restablecimiento. Guarda únicamente SHA-256, propósito, expiración, consumo y revocación. También pertenece exactamente a un tipo de cuenta.
+Token de verificación, restablecimiento o invitación tenant. Guarda únicamente SHA-256, propósito, expiración, consumo, revocación y resultado de entrega (`delivered_at`/`delivery_failed_at`). También pertenece exactamente a un tipo de cuenta.
 
 ### SecurityAuditEvent
 Evento persistente para operaciones sensibles. No contiene correo, token ni secreto.
@@ -87,13 +93,17 @@ Evento persistente para operaciones sensibles. No contiene correo, token ni secr
 
 - Employee único por organización, tipo y número de documento.
 - JobPosition único por organización y nombre normalizado.
-- Email normalizado globalmente único entre `PlatformUser` y `UserAccount`; EF protege cada tabla y Application protege el conjunto.
+- Email normalizado globalmente único mediante la clave primaria de `AccountEmail`.
+- Un único `is_initial_administrator = true` por organización.
+- NIT globalmente único y municipio válido por clave foránea.
 - Relaciones y foreign keys deben impedir referencias cruzadas de tenant.
 - Índices para `organization_id` combinado con filtros frecuentes.
 
 ## Migración inicial
 
 `InitialIdentityAndAuthentication` crea la fundación de identidad. Las migraciones se aplican de forma explícita antes de iniciar la API; el startup no modifica el esquema.
+
+`OrganizationProvisioningAndDivipola` agrega datos empresariales, reserva global de correos, invitaciones, organización en auditoría y el catálogo de 33 departamentos/1.122 municipios. La fuente y checksum están en `backend/src/Legaria.Infrastructure/Persistence/Data/README.md`.
 
 ## Eliminación
 

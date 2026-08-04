@@ -9,8 +9,11 @@ public sealed class LegariaDbContext(DbContextOptions<LegariaDbContext> options)
 {
     public DbSet<PlatformUser> PlatformUsers => Set<PlatformUser>();
     public DbSet<Organization> Organizations => Set<Organization>();
+    public DbSet<Department> Departments => Set<Department>();
+    public DbSet<Municipality> Municipalities => Set<Municipality>();
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
+    public DbSet<AccountEmail> AccountEmails => Set<AccountEmail>();
     public DbSet<SystemRole> SystemRoles => Set<SystemRole>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RefreshSession> RefreshSessions => Set<RefreshSession>();

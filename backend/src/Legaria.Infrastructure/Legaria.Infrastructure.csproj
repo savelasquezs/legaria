@@ -26,6 +26,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="EmailTemplates\*.html" />
+    <EmbeddedResource Include="Persistence\Data\DivipolaMgn2025.sql" />
+    <None Include="Persistence\Data\DivipolaMgn2025.source.json" />
   </ItemGroup>
 
 </Project>

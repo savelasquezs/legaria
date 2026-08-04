@@ -70,6 +70,10 @@ public sealed class PlatformOwnerBootstrapperTests
 
         public void AddPlatformUser(PlatformUser platformUser) => PlatformUsers.Add(platformUser);
 
+        public void AddAccountEmail(AccountEmail accountEmail)
+        {
+        }
+
         public void AddAuditEvent(SecurityAuditEvent auditEvent) => AuditEvents.Add(auditEvent);
 
         public Task SaveChangesAsync(CancellationToken cancellationToken)

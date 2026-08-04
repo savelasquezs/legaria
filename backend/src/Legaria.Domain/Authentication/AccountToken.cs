@@ -15,6 +15,8 @@ public sealed class AccountToken
     public DateTimeOffset ExpiresAt { get; private set; }
     public DateTimeOffset? UsedAt { get; private set; }
     public DateTimeOffset? RevokedAt { get; private set; }
+    public DateTimeOffset? DeliveredAt { get; private set; }
+    public DateTimeOffset? DeliveryFailedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public string? CreatedByIp { get; private set; }
 
@@ -46,6 +48,18 @@ public sealed class AccountToken
         UsedAt is null && RevokedAt is null && ExpiresAt > now;
 
     public void MarkUsed(DateTimeOffset now) => UsedAt = now;
+
+    public void MarkDelivered(DateTimeOffset now)
+    {
+        DeliveredAt = now;
+        DeliveryFailedAt = null;
+    }
+
+    public void MarkDeliveryFailed(DateTimeOffset now)
+    {
+        DeliveredAt = null;
+        DeliveryFailedAt = now;
+    }
 
     public void Revoke(DateTimeOffset now)
     {

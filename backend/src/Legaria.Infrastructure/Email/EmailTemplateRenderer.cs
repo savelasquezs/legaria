@@ -23,6 +23,18 @@ public sealed class EmailTemplateRenderer(ResendOptions options) : IEmailTemplat
             resetUrl,
             $"{(int)expiration.TotalMinutes} minutos");
 
+    public string RenderTenantInvitation(
+        string firstName,
+        string organizationName,
+        string invitationUrl,
+        TimeSpan expiration) =>
+        Render(
+                "TenantInvitation.html",
+                firstName,
+                invitationUrl,
+                $"{(int)expiration.TotalHours} horas")
+            .Replace("{{OrganizationName}}", WebUtility.HtmlEncode(organizationName), StringComparison.Ordinal);
+
     private string Render(string resourceName, string firstName, string actionUrl, string expiration)
     {
         var assembly = Assembly.GetExecutingAssembly();

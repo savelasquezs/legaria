@@ -27,7 +27,8 @@ public enum OrganizationStatus
 public enum AccountTokenPurpose
 {
     EmailVerification,
-    PasswordReset
+    PasswordReset,
+    TenantInvitation
 }
 
 public static class SystemRoleCodes

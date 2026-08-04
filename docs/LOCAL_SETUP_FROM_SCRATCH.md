@@ -79,10 +79,11 @@ No copiar `.env` entre computadores, enviarlo por mensajería ni agregarlo a
 Git. Las contraseñas del ejemplo anterior deben compartirse por un canal seguro
 si varios desarrolladores necesitan usar las mismas.
 
-La configuración de Resend incluida es deliberadamente local y no contiene una
-API key real. El remitente es `noreply@senorarroz.com`, pero no se deben probar
-flujos que envíen correo hasta configurar credenciales válidas de un ambiente
-autorizado.
+La API key real de Resend se escribe únicamente en `RESEND_API_KEY` dentro de
+`.env`; nunca se agrega a Git. El remitente configurado es
+`noreply@senorarroz.com`. Mientras se conserve el valor local de ejemplo, crear
+una organización funciona, pero su invitación quedará en `DELIVERY_FAILED` y
+podrá reenviarse después de configurar una clave válida del ambiente autorizado.
 
 ## 4. Generar HTTPS y levantar backend/base de datos
 
@@ -105,7 +106,7 @@ El script realiza estas operaciones:
 5. Crea `frontend/.env.local` con la URL HTTPS de la API.
 6. Construye la imagen .NET 8.
 7. Inicia PostgreSQL.
-8. Ejecuta `InitialIdentityAndAuthentication` mediante el contenedor `migrate`.
+8. Ejecuta las migraciones hasta `OrganizationProvisioningAndDivipola` mediante el contenedor `migrate`.
 9. Inicia la API y crea el primer `OWNER` si la base estaba vacía.
 
 No es necesario instalar PostgreSQL ni ejecutar la API .NET directamente en el
