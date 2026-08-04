@@ -1,0 +1,91 @@
+name: legaria-local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: legaria-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - legaria_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrations
+    environment:
+      ConnectionStrings__DefaultConnection: >-
+        Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    command:
+      - database
+      - update
+      - InitialIdentityAndAuthentication
+      - --project
+      - backend/src/Legaria.Infrastructure/Legaria.Infrastructure.csproj
+      - --startup-project
+      - backend/src/Legaria.Infrastructure/Legaria.Infrastructure.csproj
+      - --configuration
+      - Release
+      - --no-build
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: final
+    container_name: legaria-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: https://+:8081
+      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/legaria-local.pfx
+      ASPNETCORE_Kestrel__Certificates__Default__Password: ${CERT_PASSWORD}
+      ConnectionStrings__DefaultConnection: >-
+        Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY}
+      Jwt__AccessTokenMinutes: 10
+      Resend__ApiKey: ${RESEND_API_KEY}
+      Resend__FromEmail: ${RESEND_FROM_EMAIL}
+      Resend__FromName: ${RESEND_FROM_NAME}
+      Resend__ReplyToEmail: ${RESEND_REPLY_TO_EMAIL}
+      Frontend__BaseUrl: ${FRONTEND_BASE_URL}
+      BootstrapOwner__Email: ${BOOTSTRAP_OWNER_EMAIL}
+      BootstrapOwner__Password: ${BOOTSTRAP_OWNER_PASSWORD}
+      BootstrapOwner__FirstName: ${BOOTSTRAP_OWNER_FIRST_NAME}
+      BootstrapOwner__LastName: ${BOOTSTRAP_OWNER_LAST_NAME}
+    ports:
+      - "${API_HTTPS_PORT:-7007}:8081"
+    volumes:
+      - ./.local/https/legaria-local.pfx:/https/legaria-local.pfx:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--insecure", "https://localhost:8081/swagger/v1/swagger.json"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  legaria_postgres_data:
+    name: legaria-postgres-data

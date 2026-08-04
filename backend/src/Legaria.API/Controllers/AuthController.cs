@@ -189,18 +189,18 @@ public sealed class AuthController(
 }
 
 public sealed record LoginInput(
-    [property: Required, EmailAddress, MaxLength(320)] string Email,
-    [property: Required, MaxLength(128)] string Password);
+    [Required, EmailAddress, MaxLength(320)] string Email,
+    [Required, MaxLength(128)] string Password);
 
 public sealed record EmailInput(
-    [property: Required, EmailAddress, MaxLength(320)] string Email);
+    [Required, EmailAddress, MaxLength(320)] string Email);
 
 public sealed record TokenInput(
-    [property: Required, MaxLength(256)] string Token);
+    [Required, MaxLength(256)] string Token);
 
 public sealed record ResetPasswordInput(
-    [property: Required, MaxLength(256)] string Token,
-    [property: Required, MinLength(8), MaxLength(128)] string NewPassword);
+    [Required, MaxLength(256)] string Token,
+    [Required, MinLength(8), MaxLength(128)] string NewPassword);
 
 public sealed record GenericMessageResponse(string Message);
 

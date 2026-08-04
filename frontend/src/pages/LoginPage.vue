@@ -77,7 +77,7 @@ async function resendVerification(): Promise<void> {
       Si la cuenta requiere verificación, recibirás un nuevo enlace.
     </q-banner>
 
-    <q-form class="q-gutter-md" @submit.prevent="submit">
+    <q-form class="auth-form" @submit.prevent="submit">
       <q-input
         v-model.trim="email"
         outlined
@@ -127,7 +127,7 @@ async function resendVerification(): Promise<void> {
         no-caps
         size="lg"
         color="primary"
-        class="full-width"
+        class="auth-submit full-width"
         label="Ingresar"
         type="submit"
         :loading="loading"

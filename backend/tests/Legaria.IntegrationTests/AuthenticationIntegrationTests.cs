@@ -409,8 +409,11 @@ public sealed class AuthenticationIntegrationTests(PostgreSqlFixture fixture)
     private static string ExtractToken(string html)
     {
         var uri = new Uri(html);
-        var value = uri.Query.TrimStart('=').Replace("token=", string.Empty, StringComparison.Ordinal);
-        return Uri.UnescapeDataString(value);
+        var query = uri.Query.TrimStart('?');
+        const string tokenPrefix = "token=";
+
+        Assert.StartsWith(tokenPrefix, query, StringComparison.Ordinal);
+        return Uri.UnescapeDataString(query[tokenPrefix.Length..]);
     }
 
     private sealed record TestServices(

@@ -16,6 +16,10 @@ El access token vive únicamente en memoria. Axios envía la cookie con credenci
 
 Definir `VITE_API_BASE_URL` con el origen de la API:
 
+```dotenv
+VITE_API_BASE_URL=https://localhost:7007
+```
+
 ```powershell
 npm.cmd install
 npm.cmd run dev

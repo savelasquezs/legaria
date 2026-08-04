@@ -62,6 +62,10 @@ El bootstrap se ejecuta al arrancar la API, después de que la migración haya s
 
 La cookie de refresh siempre es `Secure`; el desarrollo local debe usar HTTPS. Frontend y API se despliegan bajo el mismo sitio y la cookie usa `SameSite=Lax`.
 
+Para levantar PostgreSQL y la API .NET 8 completamente en contenedores, incluida
+la migración explícita y el certificado HTTPS local, consultar
+[`docs/LOCAL_DOCKER.md`](docs/LOCAL_DOCKER.md).
+
 ## Verificación
 
 ```powershell

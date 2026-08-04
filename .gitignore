@@ -39,4 +39,5 @@ TestResults/
 *.db
 *.sqlite
 *.log
+.local/
 *.env

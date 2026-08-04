@@ -8,13 +8,16 @@
 
 ## Variables de autenticación
 
-El archivo `.env.example` contiene únicamente nombres y valores no secretos:
+El archivo `.env.example` contiene únicamente nombres y valores no secretos. En
+el entorno Docker local, Compose traduce estas variables a la configuración .NET:
 
-- `ConnectionStrings__DefaultConnection`
-- `Jwt__Issuer`, `Jwt__Audience`, `Jwt__SigningKey`
-- `Resend__ApiKey`, `Resend__FromEmail`, `Resend__FromName`, `Resend__ReplyToEmail`
-- `Frontend__BaseUrl`
-- `BootstrapOwner__Email`, `BootstrapOwner__DisplayName`, `BootstrapOwner__Password`
+- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`
+- `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_SIGNING_KEY`
+- `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME`, `RESEND_REPLY_TO_EMAIL`
+- `FRONTEND_BASE_URL`
+- `BOOTSTRAP_OWNER_EMAIL`, `BOOTSTRAP_OWNER_FIRST_NAME`,
+  `BOOTSTRAP_OWNER_LAST_NAME`, `BOOTSTRAP_OWNER_PASSWORD`
+- `CERT_PASSWORD`, `API_HTTPS_PORT`
 - `VITE_API_BASE_URL`
 
 La API falla al iniciar si la conexión, JWT, Resend o URL del frontend son inválidos. Las variables de bootstrap solo son exigidas si no existe ningún `PlatformUser`.

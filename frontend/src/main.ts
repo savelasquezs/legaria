@@ -2,7 +2,25 @@ import '@quasar/extras/material-icons/material-icons.css'
 import 'quasar/src/css/index.sass'
 import './styles/app.css'
 import { createApp } from 'vue'
-import { Quasar, Notify } from 'quasar'
+import {
+  Notify,
+  QBanner,
+  QBtn,
+  QCard,
+  QCardSection,
+  QForm,
+  QHeader,
+  QIcon,
+  QInput,
+  QLayout,
+  QPage,
+  QPageContainer,
+  QSeparator,
+  QSpace,
+  QSpinner,
+  QToolbar,
+  Quasar,
+} from 'quasar'
 import App from './App.vue'
 import { pinia } from './stores'
 import { router } from './router'
@@ -11,6 +29,23 @@ import { useAuthStore } from './stores/auth'
 
 const app = createApp(App)
 app.use(Quasar, {
+  components: {
+    QBanner,
+    QBtn,
+    QCard,
+    QCardSection,
+    QForm,
+    QHeader,
+    QIcon,
+    QInput,
+    QLayout,
+    QPage,
+    QPageContainer,
+    QSeparator,
+    QSpace,
+    QSpinner,
+    QToolbar,
+  },
   plugins: { Notify },
   config: {
     brand: {

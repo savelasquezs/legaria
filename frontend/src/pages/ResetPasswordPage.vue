@@ -59,7 +59,7 @@ async function submit(): Promise<void> {
         Iniciar sesión
       </router-link>
     </div>
-    <q-form v-else class="q-gutter-md" @submit.prevent="submit">
+    <q-form v-else class="auth-form" @submit.prevent="submit">
       <q-banner
         v-if="errorMessage"
         class="bg-red-1 text-negative rounded-borders"
@@ -107,7 +107,7 @@ async function submit(): Promise<void> {
         no-caps
         size="lg"
         color="primary"
-        class="full-width"
+        class="auth-submit full-width"
         label="Actualizar contraseña"
         type="submit"
         :loading="loading"

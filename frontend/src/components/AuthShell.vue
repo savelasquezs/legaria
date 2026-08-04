@@ -6,7 +6,7 @@ defineProps<{
 </script>
 
 <template>
-  <q-page class="auth-page flex flex-center">
+  <div class="auth-page flex flex-center">
     <main class="auth-wrap q-py-xl">
       <q-card class="auth-card">
         <q-card-section class="q-pa-xl">
@@ -25,5 +25,5 @@ defineProps<{
         Acceso protegido para la gestión segura de tu organización.
       </p>
     </main>
-  </q-page>
+  </div>
 </template>
