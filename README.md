@@ -38,6 +38,9 @@ DECISIONS.md               Registro de decisiones duraderas
 
 ## Configuración local
 
+Para preparar Legaria en un computador nuevo desde la clonación, seguir la guía
+completa [`docs/LOCAL_SETUP_FROM_SCRATCH.md`](docs/LOCAL_SETUP_FROM_SCRATCH.md).
+
 1. Copiar `.env.example` a un archivo local no versionado o definir sus variables en el entorno.
 2. Proporcionar PostgreSQL, JWT, Resend, URL del frontend y las credenciales de bootstrap.
 3. Aplicar la migración antes de iniciar la API:

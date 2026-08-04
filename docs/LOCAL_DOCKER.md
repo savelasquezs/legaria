@@ -1,5 +1,9 @@
 # Entorno local con Docker
 
+Para instalar todas las dependencias y preparar un computador nuevo desde un
+clon limpio, consultar
+[`LOCAL_SETUP_FROM_SCRATCH.md`](LOCAL_SETUP_FROM_SCRATCH.md).
+
 Este entorno levanta exclusivamente los servicios de Legaria:
 
 - PostgreSQL 16 en `localhost:5434`, con volumen persistente.
