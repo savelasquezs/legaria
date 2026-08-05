@@ -143,6 +143,7 @@ Reglas:
 13. Los próximos vencimientos incluyen documentos que vencen entre la fecha actual y dos meses calendario después.
 14. Los archivos se almacenan de forma privada en Firebase Storage con nombres internos aleatorios; nunca se persisten URLs públicas ni tokens de descarga.
 15. La carga admite PDF, JPEG, PNG, WebP, MP4 y WebM validados por contenido, además de enlaces HTTPS cuando el tipo los permita. El límite total de la solicitud es 105 MB y cada archivo no puede superar 100 MB.
+16. Los tipos documentales nuevos permiten múltiples evidencias por versión de forma predeterminada; limitar a una sola evidencia debe configurarse explícitamente.
 
 ## Expedientes
 

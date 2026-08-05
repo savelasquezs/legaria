@@ -327,7 +327,19 @@ onMounted(load)
         <q-input v-if="selectedDocumentType?.issueDateMode !== 'NEVER'" v-model="documentForm.issuedOn" outlined dense type="date" label="Expedición" :max="today" :rules="selectedDocumentType?.issueDateMode === 'REQUIRED' ? [(value: string) => Boolean(value) || 'Obligatoria'] : []" />
         <q-input v-if="selectedDocumentType?.expirationDateMode !== 'NEVER'" v-model="documentForm.expiresOn" outlined dense type="date" label="Vencimiento" :min="today" :rules="selectedDocumentType?.expirationDateMode === 'REQUIRED' ? [(value: string) => Boolean(value) || 'Obligatoria'] : []" />
       </div>
-      <q-file v-if="documentFileAccept" v-model="documentForm.files" outlined dense multiple :max-files="selectedDocumentType?.allowsMultipleEvidenceItems ? undefined : 1" :accept="documentFileAccept" label="Archivos" hint="PDF, imagen o video según el tipo documental" />
+      <q-file
+        v-if="documentFileAccept"
+        v-model="documentForm.files"
+        outlined
+        dense
+        use-chips
+        counter
+        multiple
+        :max-files="selectedDocumentType?.allowsMultipleEvidenceItems ? undefined : 1"
+        :accept="documentFileAccept"
+        :label="selectedDocumentType?.allowsMultipleEvidenceItems ? 'Archivos' : 'Archivo'"
+        :hint="selectedDocumentType?.allowsMultipleEvidenceItems ? 'Puedes combinar varios PDF, imágenes o videos permitidos.' : 'Este documento admite una sola evidencia.'"
+      />
       <q-input v-if="documentAllowsLink" v-model="documentForm.link" outlined dense type="url" label="Enlace HTTPS" />
       <q-card-actions align="right" class="q-px-none q-pt-sm"><q-btn flat dense no-caps label="Cancelar" :disable="saving" @click="documentDialog = false" /><q-btn unelevated dense no-caps color="primary" type="submit" label="Cargar" :disable="!canSaveDocument" :loading="saving" /></q-card-actions>
     </q-form>

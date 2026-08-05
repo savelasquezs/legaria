@@ -68,7 +68,7 @@ const typeForm = reactive({
   issueDateMode: 'NEVER' as DocumentDateMode,
   expirationDateMode: 'NEVER' as DocumentDateMode,
   allowsMultipleActiveVersions: false,
-  allowsMultipleEvidenceItems: false,
+  allowsMultipleEvidenceItems: true,
   allowedEvidenceKinds: ['PDF'] as DocumentEvidenceKind[],
 })
 
@@ -218,7 +218,7 @@ async function openTypeForm(documentType: DocumentType | null = null): Promise<v
     issueDateMode: documentType?.issueDateMode ?? 'NEVER',
     expirationDateMode: documentType?.expirationDateMode ?? 'NEVER',
     allowsMultipleActiveVersions: documentType?.allowsMultipleActiveVersions ?? false,
-    allowsMultipleEvidenceItems: documentType?.allowsMultipleEvidenceItems ?? false,
+    allowsMultipleEvidenceItems: documentType?.allowsMultipleEvidenceItems ?? true,
     allowedEvidenceKinds: documentType?.allowedEvidenceKinds.slice() ?? ['PDF'],
   })
   dialogError.value = ''
