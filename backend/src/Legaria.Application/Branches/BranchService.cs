@@ -9,7 +9,6 @@ namespace Legaria.Application.Branches;
 public sealed class BranchService(
     IBranchRepository repository,
     IEmailNormalizer emailNormalizer,
-    IPasswordService passwordService,
     ISecureTokenService secureTokenService,
     ITenantInvitationService tenantInvitations,
     IClock clock) : IBranchService
@@ -151,71 +150,6 @@ public sealed class BranchService(
         var result = await repository.FindAdministratorDetailsAsync(organizationId, id, cancellationToken)
             ?? throw AdministratorNotFound();
         return ToAdministratorResult(result);
-    }
-
-    public async Task<BranchAdministratorResult> CreateAdministratorAsync(
-        BranchAdministratorInput input,
-        CurrentAccount actor,
-        ClientContext client,
-        CancellationToken cancellationToken)
-    {
-        var organizationId = EnsureSuperAdministrator(actor);
-        var organization = await repository.FindOrganizationAsync(organizationId, cancellationToken)
-            ?? throw new BranchException(BranchErrorCodes.Forbidden, "La organización no está disponible.", BranchErrorKind.Forbidden);
-        var admin = ValidateAdministrator(input);
-        if (await repository.EmailExistsAsync(admin.NormalizedEmail, null, cancellationToken))
-        {
-            throw DuplicateEmail();
-        }
-
-        var branches = await ValidateBranchIdsAsync(organizationId, input.BranchIds, cancellationToken);
-        var now = clock.UtcNow;
-        var account = UserAccount.Create(
-            organizationId,
-            null,
-            admin.Email,
-            admin.NormalizedEmail,
-            passwordService.Hash(secureTokenService.GenerateToken()),
-            admin.FirstName,
-            admin.LastName,
-            secureTokenService.GenerateSecurityStamp(),
-            false,
-            now);
-        account.AddRole(SystemRole.BranchAdminId);
-        repository.AddUserAccount(account);
-        repository.AddAccountEmail(AccountEmail.ForTenant(admin.NormalizedEmail, account.Id, now));
-        foreach (var branch in branches)
-        {
-            repository.AddAccess(UserBranchAccess.Grant(
-                organizationId,
-                account.Id,
-                branch.Id,
-                actor.UserId,
-                now));
-        }
-
-        var invitation = await tenantInvitations.IssueAsync(
-            account.Id,
-            client,
-            false,
-            cancellationToken);
-        repository.AddAuditEvent(CreateAudit(
-            "BRANCH_ADMINISTRATOR_INVITED",
-            actor,
-            organizationId,
-            account.Id,
-            client,
-            now));
-        await repository.SaveChangesAsync(cancellationToken);
-        await tenantInvitations.DeliverAsync(
-            organization,
-            account,
-            invitation,
-            "administrador de sucursal",
-            actor,
-            client,
-            cancellationToken);
-        return await GetAdministratorAsync(account.Id, actor, cancellationToken);
     }
 
     public async Task<BranchAdministratorResult> UpdatePendingAdministratorAsync(

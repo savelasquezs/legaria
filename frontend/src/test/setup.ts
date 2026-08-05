@@ -2,6 +2,10 @@ import { config } from '@vue/test-utils'
 
 const container = { template: '<div><slot /></div>' }
 
+config.global.directives = {
+  closePopup: {},
+}
+
 config.global.stubs = {
   QPage: container,
   QCard: container,
@@ -43,6 +47,11 @@ config.global.stubs = {
   QSeparator: true,
   QSpace: true,
   QChip: container,
+  QCheckbox: {
+    props: ['modelValue', 'label'],
+    emits: ['update:modelValue'],
+    template: '<label><input type="checkbox" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />{{ label }}</label>',
+  },
   QTd: container,
   QPagination: true,
   QDialog: container,

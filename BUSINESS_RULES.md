@@ -68,7 +68,7 @@ Reglas:
 6. `SUPER_ADMIN` crea, edita, desactiva y reactiva sucursales, e invita y administra cuentas `BRANCH_ADMIN` de su organización.
 7. `BRANCH_ADMIN` solo consulta las sucursales con una concesión activa; las concesiones no se incluyen en el JWT.
 8. Un administrador activo debe conservar al menos una sucursal activa al crear o modificar sus accesos. La desactivación posterior de una sucursal no elimina la concesión histórica.
-9. Invitar un `BRANCH_ADMIN` crea cuenta no verificada, único rol `BRANCH_ADMIN`, reserva global de correo, accesos e invitación en una transacción. `EmployeeId` permanece nulo.
+9. Todo `BRANCH_ADMIN` nuevo debe estar vinculado a un `Employee`. Invitarlo crea cuenta no verificada, único rol `BRANCH_ADMIN`, reserva global de correo, accesos e invitación en una transacción.
 10. Mientras la invitación siga pendiente, `SUPER_ADMIN` puede corregir identidad y sucursales; la corrección y el reenvío revocan invitaciones anteriores.
 11. Suspender un `BRANCH_ADMIN` rota su `security_stamp`, revoca sesiones refresh e invitaciones pendientes y bloquea login, refresh y JWT. Reactivar no restaura las sesiones revocadas.
 12. Los accesos por sucursal conservan fecha y actor de concesión y revocación; volver a conceder crea un registro histórico nuevo.
@@ -89,6 +89,8 @@ Reglas:
 4. `EmployeeAssignment` representa sucursal y cargo durante un periodo.
 5. Cambiar de cargo o sucursal debe conservar historial: se cierra la asignación anterior y se crea otra cuando corresponda.
 6. Pueden existir varias asignaciones simultáneas si el trabajador presta servicios en varias sucursales.
+7. Crear un trabajador desde una sucursal crea su primera relación laboral y asignación activa; asignarlo después a otra sucursal reutiliza la relación activa.
+8. Solo puede existir una cuenta tenant vinculada a un mismo trabajador.
 
 ## Cargos
 

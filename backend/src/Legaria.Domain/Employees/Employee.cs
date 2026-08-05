@@ -35,4 +35,18 @@ public sealed class Employee
             UpdatedAt = now
         };
     }
+
+    public void UpdateIdentity(
+        string documentType,
+        string documentNumber,
+        string firstName,
+        string lastName,
+        DateTimeOffset now)
+    {
+        DocumentType = documentType;
+        DocumentNumber = documentNumber;
+        FirstName = firstName;
+        LastName = lastName;
+        UpdatedAt = now;
+    }
 }

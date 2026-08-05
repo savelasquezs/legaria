@@ -33,15 +33,6 @@ async function logout(): Promise<void> {
             :class="{ active: route.path.startsWith('/app/branches') }"
             to="/app/branches"
           />
-          <q-btn
-            v-if="isSuperAdmin"
-            flat
-            no-caps
-            icon="manage_accounts"
-            label="Administradores"
-            :class="{ active: route.path.startsWith('/app/administrators') }"
-            to="/app/administrators"
-          />
         </nav>
         <q-space />
         <div class="platform-user gt-sm">

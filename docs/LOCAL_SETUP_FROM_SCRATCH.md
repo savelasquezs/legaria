@@ -106,7 +106,7 @@ El script realiza estas operaciones:
 5. Crea `frontend/.env.local` con la URL HTTPS de la API.
 6. Construye la imagen .NET 8.
 7. Inicia PostgreSQL.
-8. Ejecuta las migraciones hasta `BranchesAndBranchAdministrators` mediante el contenedor `migrate`.
+8. Ejecuta las migraciones hasta `EmployeesEmploymentAndIntegratedBranchAdministration` mediante el contenedor `migrate`.
 9. Inicia la API y crea el primer `OWNER` si la base estaba vacía.
 
 No es necesario instalar PostgreSQL ni ejecutar la API .NET directamente en el

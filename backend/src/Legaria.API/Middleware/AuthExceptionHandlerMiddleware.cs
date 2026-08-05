@@ -1,5 +1,6 @@
 using Legaria.Application.Authentication;
 using Legaria.Application.Branches;
+using Legaria.Application.Employees;
 using Legaria.Application.Organizations;
 using Microsoft.AspNetCore.Mvc;
 
@@ -37,6 +38,17 @@ public sealed class AuthExceptionHandlerMiddleware(
                 BranchErrorKind.NotFound => StatusCodes.Status404NotFound,
                 BranchErrorKind.Conflict => StatusCodes.Status409Conflict,
                 BranchErrorKind.Forbidden => StatusCodes.Status403Forbidden,
+                _ => StatusCodes.Status400BadRequest
+            };
+            await WriteProblemAsync(context, status, exception.Code, exception.Message);
+        }
+        catch (EmployeeException exception)
+        {
+            var status = exception.Kind switch
+            {
+                EmployeeErrorKind.NotFound => StatusCodes.Status404NotFound,
+                EmployeeErrorKind.Conflict => StatusCodes.Status409Conflict,
+                EmployeeErrorKind.Forbidden => StatusCodes.Status403Forbidden,
                 _ => StatusCodes.Status400BadRequest
             };
             await WriteProblemAsync(context, status, exception.Code, exception.Message);

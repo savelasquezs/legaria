@@ -35,19 +35,6 @@ public sealed class BranchAdministratorsController(
         CancellationToken cancellationToken) =>
         Ok(await branchService.GetAdministratorAsync(id, currentUser.ToCurrentAccount(), cancellationToken));
 
-    [HttpPost]
-    public async Task<ActionResult<BranchAdministratorResult>> Create(
-        BranchAdministratorInputModel input,
-        CancellationToken cancellationToken)
-    {
-        var result = await branchService.CreateAdministratorAsync(
-            input.ToRequest(),
-            currentUser.ToCurrentAccount(),
-            Client(),
-            cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
-    }
-
     [HttpPut("{id:guid}/pending-profile")]
     public async Task<ActionResult<BranchAdministratorResult>> UpdatePending(
         Guid id,

@@ -1,8 +1,10 @@
 using Legaria.Application.Authentication;
 using Legaria.Application.Branches;
 using Legaria.Application.Configuration;
+using Legaria.Application.Employees;
 using Legaria.Application.Organizations;
 using Legaria.Domain.Authentication;
+using Legaria.Domain.Employees;
 using Legaria.Domain.Tenancy;
 using Legaria.Infrastructure.Authentication;
 using Legaria.Infrastructure.Persistence;
@@ -25,13 +27,13 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
             BranchInput("Norte"), services.SuperActor, Client(), CancellationToken.None);
         var otherTenant = await services.Branches.CreateBranchAsync(
             BranchInput("Centro"), services.OtherSuperActor, Client(), CancellationToken.None);
-        var administrator = await services.Branches.CreateAdministratorAsync(
-            AdministratorInput([assigned.Id]), services.SuperActor, Client(), CancellationToken.None);
+        var administrator = await CreateAdministratorAsync(services, assigned.Id, [assigned.Id]);
+        var administratorId = administrator.AdministrativeAccess!.AccountId;
         var branchActor = new CurrentAccount(
-            administrator.Id,
+            administratorId,
             AccountType.Tenant,
             services.SuperActor.OrganizationId,
-            null,
+            administrator.Id,
             [SystemRoleCodes.BranchAdmin]);
 
         var visible = await services.Branches.ListBranchesAsync(
@@ -68,22 +70,22 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
         var second = await services.Branches.CreateBranchAsync(
             BranchInput("Norte"), services.SuperActor, Client(), CancellationToken.None);
 
-        var created = await services.Branches.CreateAdministratorAsync(
-            AdministratorInput([first.Id]), services.SuperActor, Client(), CancellationToken.None);
+        var created = await CreateAdministratorAsync(services, first.Id, [first.Id]);
+        var accountId = created.AdministrativeAccess!.AccountId;
         var account = await context.UserAccounts
             .Include(item => item.Roles)
-            .SingleAsync(item => item.Id == created.Id);
+            .SingleAsync(item => item.Id == accountId);
         var firstRawToken = ExtractToken(services.Email.LastHtml);
-        var firstStoredToken = await context.AccountTokens.SingleAsync(item => item.UserAccountId == created.Id);
+        var firstStoredToken = await context.AccountTokens.SingleAsync(item => item.UserAccountId == accountId);
 
-        Assert.Null(account.EmployeeId);
+        Assert.Equal(created.Id, account.EmployeeId);
         Assert.Single(account.Roles, role => role.SystemRoleId == SystemRole.BranchAdminId);
         Assert.NotEqual(firstRawToken, firstStoredToken.TokenHash);
         Assert.Equal(first.Id, (await context.UserBranchAccesses.SingleAsync()).BranchId);
-        Assert.Equal(InvitationStatuses.Sent, created.InvitationStatus);
+        Assert.Equal(InvitationStatuses.Sent, created.AdministrativeAccess.InvitationStatus);
 
         await services.Branches.ResendInvitationAsync(
-            created.Id, services.SuperActor, Client(), CancellationToken.None);
+            accountId, services.SuperActor, Client(), CancellationToken.None);
         var secondRawToken = ExtractToken(services.Email.LastHtml);
         Assert.NotNull((await context.AccountTokens.SingleAsync(item => item.Id == firstStoredToken.Id)).RevokedAt);
         var replaced = await Assert.ThrowsAsync<OrganizationException>(() => services.Invitations.AcceptAsync(
@@ -92,16 +94,16 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
 
         await services.Invitations.AcceptAsync(
             new AcceptInvitationRequest(secondRawToken, "Admin.2026!"), Client(), CancellationToken.None);
-        Assert.NotNull((await context.UserAccounts.SingleAsync(item => item.Id == created.Id)).EmailVerifiedAt);
+        Assert.NotNull((await context.UserAccounts.SingleAsync(item => item.Id == accountId)).EmailVerifiedAt);
 
         await services.Branches.UpdateAssignmentsAsync(
-            created.Id,
+            accountId,
             new UpdateBranchAssignmentsRequest([second.Id]),
             services.SuperActor,
             Client(),
             CancellationToken.None);
         var history = await context.UserBranchAccesses
-            .Where(item => item.UserAccountId == created.Id)
+            .Where(item => item.UserAccountId == accountId)
             .OrderBy(item => item.GrantedAt)
             .ToArrayAsync();
         Assert.Equal(2, history.Length);
@@ -109,10 +111,10 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
         Assert.Null(history.Single(item => item.BranchId == second.Id).RevokedAt);
 
         var branchActor = new CurrentAccount(
-            created.Id,
+            accountId,
             AccountType.Tenant,
             services.SuperActor.OrganizationId,
-            null,
+            created.Id,
             [SystemRoleCodes.BranchAdmin]);
         var visible = await services.Branches.ListBranchesAsync(
             1, 20, null, null, branchActor, CancellationToken.None);
@@ -127,8 +129,8 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
         var services = await CreateServicesAsync(context);
         var branch = await services.Branches.CreateBranchAsync(
             BranchInput("Centro"), services.SuperActor, Client(), CancellationToken.None);
-        var accepted = await services.Branches.CreateAdministratorAsync(
-            AdministratorInput([branch.Id]), services.SuperActor, Client(), CancellationToken.None);
+        var accepted = await CreateAdministratorAsync(services, branch.Id, [branch.Id]);
+        var acceptedAccountId = accepted.AdministrativeAccess!.AccountId;
         await services.Invitations.AcceptAsync(
             new AcceptInvitationRequest(ExtractToken(services.Email.LastHtml), "Admin.2026!"),
             Client(),
@@ -137,45 +139,46 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
             new LoginRequest("branch.admin@legaria.test", "Admin.2026!"),
             Client(),
             CancellationToken.None);
-        var previousStamp = (await context.UserAccounts.SingleAsync(item => item.Id == accepted.Id)).SecurityStamp;
+        var previousStamp = (await context.UserAccounts.SingleAsync(item => item.Id == acceptedAccountId)).SecurityStamp;
 
         await services.Branches.SuspendAdministratorAsync(
-            accepted.Id, services.SuperActor, Client(), CancellationToken.None);
-        var suspended = await context.UserAccounts.SingleAsync(item => item.Id == accepted.Id);
+            acceptedAccountId, services.SuperActor, Client(), CancellationToken.None);
+        var suspended = await context.UserAccounts.SingleAsync(item => item.Id == acceptedAccountId);
         Assert.Equal(AccountStatus.Suspended, suspended.Status);
         Assert.NotEqual(previousStamp, suspended.SecurityStamp);
         Assert.All(
-            await context.RefreshSessions.Where(item => item.UserAccountId == accepted.Id).ToArrayAsync(),
+            await context.RefreshSessions.Where(item => item.UserAccountId == acceptedAccountId).ToArrayAsync(),
             session => Assert.NotNull(session.RevokedAt));
         var rejectedRefresh = await Assert.ThrowsAsync<AuthException>(() => services.Authentication.RefreshAsync(
             login.RefreshToken, Client(), CancellationToken.None));
         Assert.Equal(AuthErrorCodes.InvalidRefreshToken, rejectedRefresh.Code);
 
         await services.Branches.ReactivateAdministratorAsync(
-            accepted.Id, services.SuperActor, Client(), CancellationToken.None);
+            acceptedAccountId, services.SuperActor, Client(), CancellationToken.None);
         var newLogin = await services.Authentication.LoginAsync(
             new LoginRequest("branch.admin@legaria.test", "Admin.2026!"),
             Client(),
             CancellationToken.None);
-        Assert.Equal(accepted.Id, newLogin.Account.Id);
+        Assert.Equal(acceptedAccountId, newLogin.Account.Id);
 
-        var pending = await services.Branches.CreateAdministratorAsync(
-            AdministratorInput([branch.Id], "pending.admin@legaria.test"),
-            services.SuperActor,
-            Client(),
-            CancellationToken.None);
+        var pending = await CreateAdministratorAsync(
+            services,
+            branch.Id,
+            [branch.Id],
+            "pending.admin@legaria.test");
+        var pendingAccountId = pending.AdministrativeAccess!.AccountId;
         var pendingToken = ExtractToken(services.Email.LastHtml);
         await services.Branches.SuspendAdministratorAsync(
-            pending.Id, services.SuperActor, Client(), CancellationToken.None);
+            pendingAccountId, services.SuperActor, Client(), CancellationToken.None);
         var rejectedInvitation = await Assert.ThrowsAsync<OrganizationException>(() => services.Invitations.AcceptAsync(
             new AcceptInvitationRequest(pendingToken, "Pending.2026!"), Client(), CancellationToken.None));
         Assert.Equal(OrganizationErrorCodes.UsedInvitation, rejectedInvitation.Code);
         await services.Branches.ReactivateAdministratorAsync(
-            pending.Id, services.SuperActor, Client(), CancellationToken.None);
+            pendingAccountId, services.SuperActor, Client(), CancellationToken.None);
         Assert.Equal(
             InvitationStatuses.Revoked,
             (await services.Branches.GetAdministratorAsync(
-                pending.Id, services.SuperActor, CancellationToken.None)).InvitationStatus);
+                pendingAccountId, services.SuperActor, CancellationToken.None)).InvitationStatus);
     }
 
     [Fact]
@@ -186,24 +189,24 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
         var services = await CreateServicesAsync(context);
         var branch = await services.Branches.CreateBranchAsync(
             BranchInput("Centro"), services.SuperActor, Client(), CancellationToken.None);
-        var administrator = await services.Branches.CreateAdministratorAsync(
-            AdministratorInput([branch.Id]), services.SuperActor, Client(), CancellationToken.None);
+        var administrator = await CreateAdministratorAsync(services, branch.Id, [branch.Id]);
+        var administratorId = administrator.AdministrativeAccess!.AccountId;
 
         await services.Branches.DeactivateBranchAsync(
             branch.Id, services.SuperActor, Client(), CancellationToken.None);
 
         Assert.Null((await context.UserBranchAccesses.SingleAsync()).RevokedAt);
         var branchActor = new CurrentAccount(
-            administrator.Id,
+            administratorId,
             AccountType.Tenant,
             services.SuperActor.OrganizationId,
-            null,
+            administrator.Id,
             [SystemRoleCodes.BranchAdmin]);
         var visible = await services.Branches.ListBranchesAsync(
             1, 20, null, null, branchActor, CancellationToken.None);
         Assert.Equal(BranchStatuses.Inactive, Assert.Single(visible.Items).Status);
         var invalid = await Assert.ThrowsAsync<BranchException>(() => services.Branches.UpdateAssignmentsAsync(
-            administrator.Id,
+            administratorId,
             new UpdateBranchAssignmentsRequest([branch.Id]),
             services.SuperActor,
             Client(),
@@ -216,6 +219,63 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
             BranchStatuses.Active,
             (await services.Branches.ListBranchesAsync(
                 1, 20, null, null, branchActor, CancellationToken.None)).Items.Single().Status);
+    }
+
+    [Fact]
+    public async Task WorkerCanExistWithoutAccountAndBeAssignedToMultipleBranches()
+    {
+        await fixture.ResetAsync();
+        await using var context = fixture.CreateDbContext();
+        var services = await CreateServicesAsync(context);
+        var first = await services.Branches.CreateBranchAsync(
+            BranchInput("Centro"), services.SuperActor, Client(), CancellationToken.None);
+        var second = await services.Branches.CreateBranchAsync(
+            BranchInput("Norte"), services.SuperActor, Client(), CancellationToken.None);
+
+        var created = await services.Employees.CreateAsync(
+            first.Id,
+            new CreateEmployeeInput(
+                "CC",
+                "1030123456",
+                "María",
+                "Trabajadora",
+                services.PositionId,
+                new DateOnly(2026, 8, 4),
+                true,
+                null),
+            services.SuperActor,
+            Client(),
+            CancellationToken.None);
+        var assigned = await services.Employees.AssignAsync(
+            second.Id,
+            created.Id,
+            new AssignEmployeeInput(
+                services.PositionId,
+                new DateOnly(2026, 8, 5),
+                false,
+                null),
+            services.SuperActor,
+            Client(),
+            CancellationToken.None);
+
+        Assert.Null(assigned.AdministrativeAccess);
+        Assert.Equal(2, assigned.Assignments.Count);
+        Assert.Empty(await context.UserAccounts.Where(item => item.EmployeeId == created.Id).ToArrayAsync());
+        Assert.Equal(
+            created.Id,
+            Assert.Single((await services.Employees.ListAsync(
+                1, 20, null, second.Id, null, services.SuperActor, CancellationToken.None)).Items).Id);
+
+        var invited = await services.Employees.GrantAdministrativeAccessAsync(
+            created.Id,
+            new AdministrativeAccessInput("worker.admin@legaria.test", [first.Id, second.Id]),
+            services.SuperActor,
+            Client(),
+            CancellationToken.None);
+
+        var access = Assert.IsType<EmployeeAdministrativeAccessResult>(invited.AdministrativeAccess);
+        Assert.Equal(created.Id, (await context.UserAccounts.SingleAsync(item => item.Id == access.AccountId)).EmployeeId);
+        Assert.Equal(2, access.BranchIds.Count);
     }
 
     private static async Task<TestServices> CreateServicesAsync(LegariaDbContext context)
@@ -264,6 +324,16 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
         var branches = new BranchService(
             new BranchRepository(context),
             normalizer,
+            tokens,
+            invitations,
+            clock);
+        var position = JobPosition.Create(organizationA.Id, "Administrador", "ADMINISTRADOR", now);
+        context.Add(position);
+        await context.SaveChangesAsync();
+        var employees = new EmployeeService(
+            new EmployeeRepository(context),
+            new BranchRepository(context),
+            normalizer,
             passwords,
             tokens,
             invitations,
@@ -290,6 +360,8 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
             frontendOptions);
         return new TestServices(
             branches,
+            employees,
+            position.Id,
             invitations,
             authentication,
             email,
@@ -300,10 +372,25 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
     private static BranchInput BranchInput(string name) =>
         new(name, "sucursal@legaria.test", "+573001112233", "Carrera 7 # 10-20", "11001");
 
-    private static BranchAdministratorInput AdministratorInput(
-        IReadOnlyCollection<Guid> branchIds,
+    private static Task<EmployeeResult> CreateAdministratorAsync(
+        TestServices services,
+        Guid assignmentBranchId,
+        IReadOnlyCollection<Guid> accessBranchIds,
         string email = "branch.admin@legaria.test") =>
-        new("Brenda", "Administradora", email, branchIds);
+        services.Employees.CreateAsync(
+            assignmentBranchId,
+            new CreateEmployeeInput(
+                "CC",
+                email.ToUpperInvariant(),
+                "Brenda",
+                "Administradora",
+                services.PositionId,
+                new DateOnly(2026, 8, 4),
+                true,
+                new AdministrativeAccessInput(email, accessBranchIds)),
+            services.SuperActor,
+            Client(),
+            CancellationToken.None);
 
     private static ClientContext Client() => new("127.0.0.1", "branch-tests");
 
@@ -315,6 +402,8 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
 
     private sealed record TestServices(
         BranchService Branches,
+        EmployeeService Employees,
+        Guid PositionId,
         TenantInvitationService Invitations,
         AuthenticationService Authentication,
         CapturingEmailSender Email,

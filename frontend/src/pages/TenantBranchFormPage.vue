@@ -3,6 +3,7 @@ import { Notify } from 'quasar'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import TenantLayout from '../components/TenantLayout.vue'
+import BranchEmployeesSection from '../components/BranchEmployeesSection.vue'
 import { getProblem } from '../services/api'
 import { changeBranchStatus, createBranch, getBranch, updateBranch } from '../services/branches'
 import { getDepartments, getMunicipalities } from '../services/organizations'
@@ -183,6 +184,12 @@ onMounted(load)
           </q-card-actions>
         </q-card>
       </q-form>
+
+      <BranchEmployeesSection
+        v-if="editing && branch && isSuperAdmin"
+        :branch-id="branch.id"
+        :branch-active="branch.status === 'ACTIVE'"
+      />
 
       <q-dialog v-model="confirmStatus">
         <q-card class="confirm-card">

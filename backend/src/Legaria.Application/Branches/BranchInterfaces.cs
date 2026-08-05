@@ -116,11 +116,6 @@ public interface IBranchService
         Guid id,
         CurrentAccount actor,
         CancellationToken cancellationToken);
-    Task<BranchAdministratorResult> CreateAdministratorAsync(
-        BranchAdministratorInput input,
-        CurrentAccount actor,
-        ClientContext client,
-        CancellationToken cancellationToken);
     Task<BranchAdministratorResult> UpdatePendingAdministratorAsync(
         Guid id,
         BranchAdministratorInput input,

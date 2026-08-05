@@ -2,12 +2,9 @@ import { api } from './api'
 import type {
   Branch,
   BranchAdministrator,
-  BranchAdministratorData,
   BranchData,
   BranchPage,
   BranchStatus,
-  BranchAdministratorPage,
-  TenantAccountStatus,
 } from '../types/branches'
 
 export async function listBranches(params: {
@@ -51,47 +48,6 @@ export async function changeBranchStatus(
   action: 'deactivate' | 'reactivate',
 ): Promise<Branch> {
   const { data } = await api.post<Branch>(`/api/tenant/branches/${id}/${action}`)
-  return data
-}
-
-export async function listBranchAdministrators(params: {
-  page: number
-  pageSize: number
-  search?: string
-  status?: TenantAccountStatus
-}): Promise<BranchAdministratorPage> {
-  const { data } = await api.get<BranchAdministratorPage>(
-    '/api/tenant/branch-administrators',
-    { params },
-  )
-  return data
-}
-
-export async function getBranchAdministrator(id: string): Promise<BranchAdministrator> {
-  const { data } = await api.get<BranchAdministrator>(
-    `/api/tenant/branch-administrators/${id}`,
-  )
-  return data
-}
-
-export async function createBranchAdministrator(
-  input: BranchAdministratorData,
-): Promise<BranchAdministrator> {
-  const { data } = await api.post<BranchAdministrator>(
-    '/api/tenant/branch-administrators',
-    input,
-  )
-  return data
-}
-
-export async function updatePendingBranchAdministrator(
-  id: string,
-  input: BranchAdministratorData,
-): Promise<BranchAdministrator> {
-  const { data } = await api.put<BranchAdministrator>(
-    `/api/tenant/branch-administrators/${id}/pending-profile`,
-    input,
-  )
   return data
 }
 

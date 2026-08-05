@@ -15,13 +15,13 @@ Sucursal de una organización. Conserva nombre normalizado, contacto opcional, d
 Persona trabajadora. No representa contrato, cargo ni cuenta de acceso.
 
 ### EmploymentRelationship
-Vínculo laboral durante un periodo. Permite recontrataciones del mismo Employee.
+Vínculo laboral durante un periodo. Conserva fechas de inicio y terminación y permite recontrataciones del mismo Employee.
 
 ### EmployeeAssignment
-Asignación de una relación laboral a una sucursal y cargo. Puede haber varias activas.
+Asignación histórica de una relación laboral a una sucursal y cargo. Puede haber varias activas y solo una principal activa por relación laboral.
 
 ### JobPosition
-Cargo definido por la organización y reutilizable en sucursales.
+Cargo activo o inactivo definido por la organización y reutilizable en sucursales. Su nombre normalizado es único dentro del tenant.
 
 ## Documentos
 
@@ -106,6 +106,8 @@ Evento persistente para operaciones sensibles. No contiene correo, token ni secr
 `OrganizationProvisioningAndDivipola` agrega datos empresariales, reserva global de correos, invitaciones, organización en auditoría y el catálogo de 33 departamentos/1.122 municipios. La fuente y checksum están en `backend/src/Legaria.Infrastructure/Persistence/Data/README.md`.
 
 `BranchesAndBranchAdministrators` agrega sucursales, historial `user_branch_accesses`, actor tenant y sucursal afectada en auditoría. No modifica ni inventa datos de las organizaciones y cuentas existentes.
+
+`EmployeesEmploymentAndIntegratedBranchAdministration` agrega relaciones laborales, cargos y asignaciones. También hace único el vínculo cuenta-trabajador y falla si encuentra un `BRANCH_ADMIN` sin `employee_id`, en lugar de inventar una persona o documento.
 
 ## Eliminación
 

@@ -138,6 +138,77 @@ internal sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
     }
 }
 
+internal sealed class EmploymentRelationshipConfiguration : IEntityTypeConfiguration<EmploymentRelationship>
+{
+    public void Configure(EntityTypeBuilder<EmploymentRelationship> builder)
+    {
+        builder.ToTable("employment_relationships", table =>
+            table.HasCheckConstraint(
+                "ck_employment_relationships_dates",
+                "ended_on IS NULL OR ended_on >= started_on"));
+        builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.OrganizationId, x.Id });
+        builder.HasIndex(x => new { x.OrganizationId, x.EmployeeId, x.StartedOn });
+        builder.HasOne<Employee>()
+            .WithMany()
+            .HasForeignKey(x => new { x.OrganizationId, x.EmployeeId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class JobPositionConfiguration : IEntityTypeConfiguration<JobPosition>
+{
+    public void Configure(EntityTypeBuilder<JobPosition> builder)
+    {
+        builder.ToTable("job_positions", table =>
+            table.HasCheckConstraint("ck_job_positions_status", "status IN ('ACTIVE', 'INACTIVE')"));
+        builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.OrganizationId, x.Id });
+        builder.Property(x => x.Name).HasMaxLength(150).IsRequired();
+        builder.Property(x => x.NormalizedName).HasMaxLength(150).IsRequired();
+        builder.Property(x => x.Status).HasConversion(
+            value => value == JobPositionStatus.Active ? "ACTIVE" : "INACTIVE",
+            value => value == "ACTIVE" ? JobPositionStatus.Active : JobPositionStatus.Inactive);
+        builder.HasIndex(x => new { x.OrganizationId, x.NormalizedName }).IsUnique();
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(x => x.OrganizationId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class EmployeeAssignmentConfiguration : IEntityTypeConfiguration<EmployeeAssignment>
+{
+    public void Configure(EntityTypeBuilder<EmployeeAssignment> builder)
+    {
+        builder.ToTable("employee_assignments", table =>
+            table.HasCheckConstraint(
+                "ck_employee_assignments_dates",
+                "ended_on IS NULL OR ended_on >= started_on"));
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.OrganizationId, x.BranchId, x.EndedOn });
+        builder.HasIndex(x => new { x.OrganizationId, x.EmploymentRelationshipId })
+            .IsUnique()
+            .HasFilter("\"is_primary\" = TRUE AND \"ended_on\" IS NULL");
+        builder.HasOne<EmploymentRelationship>()
+            .WithMany()
+            .HasForeignKey(x => new { x.OrganizationId, x.EmploymentRelationshipId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Branch>()
+            .WithMany()
+            .HasForeignKey(x => new { x.OrganizationId, x.BranchId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<JobPosition>()
+            .WithMany()
+            .HasForeignKey(x => new { x.OrganizationId, x.JobPositionId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 internal sealed class UserAccountConfiguration : IEntityTypeConfiguration<UserAccount>
 {
     public void Configure(EntityTypeBuilder<UserAccount> builder)
@@ -156,6 +227,9 @@ internal sealed class UserAccountConfiguration : IEntityTypeConfiguration<UserAc
         builder.Property(x => x.SecurityStamp).HasMaxLength(64).IsRequired();
         builder.HasIndex(x => x.NormalizedEmail).IsUnique();
         builder.HasIndex(x => new { x.OrganizationId, x.Id }).IsUnique();
+        builder.HasIndex(x => new { x.OrganizationId, x.EmployeeId })
+            .IsUnique()
+            .HasFilter("\"employee_id\" IS NOT NULL");
         builder.HasIndex(x => x.OrganizationId)
             .IsUnique()
             .HasFilter("\"is_initial_administrator\" = TRUE");

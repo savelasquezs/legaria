@@ -52,18 +52,3 @@ export interface BranchAdministrator {
   createdAt: string
   updatedAt: string
 }
-
-export interface BranchAdministratorPage {
-  items: BranchAdministrator[]
-  page: number
-  pageSize: number
-  totalItems: number
-  totalPages: number
-}
-
-export interface BranchAdministratorData {
-  firstName: string
-  lastName: string
-  email: string
-  branchIds: string[]
-}

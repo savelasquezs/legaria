@@ -130,6 +130,18 @@ Este archivo documenta decisiones duraderas. Agregar una entrada cuando cambie a
 
 **Consecuencia:** ambos flujos conservan 24 horas de vigencia, token SHA-256 de un solo uso, entrega posterior al commit y estado `REVOKED` cuando una suspensión deja la cuenta pendiente sin invitación utilizable.
 
+## 2026-08-05 — Administración integrada en trabajadores
+
+**Decisión:** no existe un panel tenant independiente de administradores. Los trabajadores se crean o asignan desde la sucursal y, opcionalmente, reciben una cuenta vinculada con rol `BRANCH_ADMIN` e invitación segura.
+
+**Consecuencia:** todo nuevo `BRANCH_ADMIN` tiene `employee_id`; la relación laboral y el acceso administrativo por sucursal se conservan como conceptos independientes. El primer `SUPER_ADMIN` aprovisionado continúa siendo la única excepción permitida sin trabajador.
+
+## 2026-08-05 — Base laboral para asignaciones por sucursal
+
+**Decisión:** `EmploymentRelationship` conserva cada vínculo laboral, `EmployeeAssignment` su historial de sucursal/cargo y `JobPosition` el catálogo de cargos del tenant.
+
+**Consecuencia:** un trabajador puede tener varias asignaciones activas, pero solo una principal activa por relación laboral. Las claves foráneas compuestas impiden referencias cruzadas entre organizaciones.
+
 ## Pendientes deliberados
 
 Estas decisiones no están cerradas y no deben inventarse:

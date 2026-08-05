@@ -123,12 +123,25 @@ Códigos estables adicionales:
 
 El listado acepta `page` (1), `pageSize` (20, máximo 100), `search` y `status=ACTIVE|INACTIVE`. El tenant siempre se obtiene del JWT validado. Nombre, dirección y municipio DIVIPOLA son obligatorios; correo y teléfono son opcionales. El nombre normalizado es único dentro de la organización.
 
-## Administradores de sucursal
+## Trabajadores y acceso administrativo
+
+| Método | Ruta | Política |
+| --- | --- | --- |
+| `GET` | `/api/tenant/employees` | `SUPER_ADMIN` |
+| `GET` | `/api/tenant/employees/{id}` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/branches/{branchId}/employees` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/branches/{branchId}/employees/{employeeId}/assignments` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/employees/{id}/administrative-access` | `SUPER_ADMIN` |
+| `GET` | `/api/tenant/job-positions` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/job-positions` | `SUPER_ADMIN` |
+
+El listado admite búsqueda por nombre o documento, paginación, `branchId` y `excludeBranchId`. Crear recibe identidad, cargo, fecha de inicio y una sección opcional `administrativeAccess` con correo y sucursales. Cuando se solicita acceso, trabajador, vínculo laboral, asignación, cuenta vinculada, rol `BRANCH_ADMIN`, accesos, reserva de correo, invitación y auditoría se confirman juntos antes del envío.
+
+La administración posterior de la cuenta vinculada reutiliza estas operaciones:
 
 | Método | Ruta | Política |
 | --- | --- | --- |
 | `GET` | `/api/tenant/branch-administrators` | `SUPER_ADMIN` |
-| `POST` | `/api/tenant/branch-administrators` | `SUPER_ADMIN` |
 | `GET` | `/api/tenant/branch-administrators/{id}` | `SUPER_ADMIN` |
 | `PUT` | `/api/tenant/branch-administrators/{id}/pending-profile` | `SUPER_ADMIN`, solo pendiente |
 | `PUT` | `/api/tenant/branch-administrators/{id}/branches` | `SUPER_ADMIN` |
@@ -136,7 +149,7 @@ El listado acepta `page` (1), `pageSize` (20, máximo 100), `search` y `status=A
 | `POST` | `/api/tenant/branch-administrators/{id}/suspend` | `SUPER_ADMIN` |
 | `POST` | `/api/tenant/branch-administrators/{id}/reactivate` | `SUPER_ADMIN` |
 
-Crear y corregir reciben `firstName`, `lastName`, `email` y `branchIds`, nunca contraseña. Las sucursales seleccionadas deben estar activas, pertenecer al tenant autenticado y contener al menos un elemento. Actualizar una identidad pendiente genera y entrega una invitación nueva; actualizar solo `branchIds` no reinvita.
+No existe creación directa bajo `/branch-administrators`: una cuenta nueva debe originarse desde un trabajador y conservar `employee_id`. Las sucursales seleccionadas deben estar activas, pertenecer al tenant autenticado y contener al menos un elemento. Actualizar una identidad pendiente genera y entrega una invitación nueva; actualizar solo `branchIds` no reinvita.
 
 Estados públicos de cuenta: `ACTIVE|SUSPENDED`. Estados de invitación: `PENDING_DELIVERY|SENT|DELIVERY_FAILED|EXPIRED|ACCEPTED|REVOKED`.
 

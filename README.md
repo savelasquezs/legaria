@@ -14,9 +14,10 @@ El repositorio contiene autenticación segura y el módulo de aprovisionamiento 
 - Aplicación Vue 3 + Quasar para login, recuperación, restablecimiento y verificación.
 - Consola `/platform` para listar, crear, editar, suspender y reactivar organizaciones.
 - Invitación segura del primer `SUPER_ADMIN`, con catálogo DIVIPOLA MGN 2025 versionado.
+- Consola tenant con sucursales, trabajadores, cargos, asignaciones laborales e invitación integrada de `BRANCH_ADMIN`.
 - Pruebas unitarias, de integración con PostgreSQL/Testcontainers y de frontend.
 
-Este incremento no incluye registro público, sucursales, trabajadores, administración de usuarios activos, dashboard, planes, pagos ni módulos laborales.
+Todavía no incluye registro público, contratos, nómina, documentos laborales, expedientes, dashboard, planes ni pagos.
 
 ## Estructura
 

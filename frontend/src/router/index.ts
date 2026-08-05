@@ -11,8 +11,6 @@ import PlatformOrganizationsPage from '../pages/PlatformOrganizationsPage.vue'
 import OrganizationFormPage from '../pages/OrganizationFormPage.vue'
 import TenantBranchesPage from '../pages/TenantBranchesPage.vue'
 import TenantBranchFormPage from '../pages/TenantBranchFormPage.vue'
-import TenantAdministratorsPage from '../pages/TenantAdministratorsPage.vue'
-import TenantAdministratorFormPage from '../pages/TenantAdministratorFormPage.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -96,24 +94,6 @@ export const router = createRouter({
       name: 'tenant-branch-detail',
       component: TenantBranchFormPage,
       meta: { accountType: 'TENANT' },
-    },
-    {
-      path: '/app/administrators',
-      name: 'tenant-administrators',
-      component: TenantAdministratorsPage,
-      meta: { accountType: 'TENANT', roles: ['SUPER_ADMIN'] },
-    },
-    {
-      path: '/app/administrators/new',
-      name: 'tenant-administrator-create',
-      component: TenantAdministratorFormPage,
-      meta: { accountType: 'TENANT', roles: ['SUPER_ADMIN'] },
-    },
-    {
-      path: '/app/administrators/:id',
-      name: 'tenant-administrator-detail',
-      component: TenantAdministratorFormPage,
-      meta: { accountType: 'TENANT', roles: ['SUPER_ADMIN'] },
     },
     {
       path: '/:pathMatch(.*)*',

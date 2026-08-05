@@ -57,12 +57,9 @@ describe('authentication route guards', () => {
     expect(router.currentRoute.value.path).toBe('/platform')
   })
 
-  it('keeps a branch administrator out of tenant administration routes', async () => {
+  it('keeps a branch administrator out of superadministrator routes', async () => {
     const auth = useAuthStore(pinia)
     auth.account = branchAdministratorAccount
-
-    await router.push('/app/administrators')
-    expect(router.currentRoute.value.path).toBe('/app/branches')
 
     await router.push('/app/branches/new')
     expect(router.currentRoute.value.path).toBe('/app/branches')

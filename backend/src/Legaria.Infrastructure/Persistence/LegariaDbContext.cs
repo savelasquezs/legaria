@@ -13,6 +13,9 @@ public sealed class LegariaDbContext(DbContextOptions<LegariaDbContext> options)
     public DbSet<Municipality> Municipalities => Set<Municipality>();
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<EmploymentRelationship> EmploymentRelationships => Set<EmploymentRelationship>();
+    public DbSet<JobPosition> JobPositions => Set<JobPosition>();
+    public DbSet<EmployeeAssignment> EmployeeAssignments => Set<EmployeeAssignment>();
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
     public DbSet<AccountEmail> AccountEmails => Set<AccountEmail>();
     public DbSet<SystemRole> SystemRoles => Set<SystemRole>();
