@@ -422,7 +422,8 @@ public sealed class OrganizationService(
             item.InitialAdmin.LastName,
             item.InitialAdmin.Email,
             tenantInvitations.GetPublicStatus(item.InitialAdmin, item.Invitation, now),
-            item.InitialAdmin.EmailVerifiedAt is null ? item.Invitation?.ExpiresAt : null));
+            item.InitialAdmin.EmailVerifiedAt is null ? item.Invitation?.ExpiresAt : null),
+        item.HasBranches);
 
     private OrganizationListItem ToListItem(OrganizationQueryItem item) => new(
         item.Organization.Id,

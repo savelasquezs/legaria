@@ -2,6 +2,7 @@ using Legaria.Application.Branches;
 using Legaria.Domain.Authentication;
 using Legaria.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 
 namespace Legaria.Infrastructure.Persistence;
@@ -218,6 +219,21 @@ public sealed class BranchRepository(LegariaDbContext dbContext) : IBranchReposi
     public Task<Organization?> FindOrganizationAsync(Guid organizationId, CancellationToken cancellationToken) =>
         dbContext.Organizations.SingleOrDefaultAsync(item => item.Id == organizationId, cancellationToken);
 
+    public Task<Organization?> FindOrganizationForUpdateAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken) =>
+        dbContext.Organizations
+            .FromSqlInterpolated($"SELECT * FROM organizations WHERE id = {organizationId} FOR UPDATE")
+            .SingleOrDefaultAsync(cancellationToken);
+
+    public Task<bool> OrganizationHasBranchesAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken) =>
+        dbContext.Branches.AnyAsync(item => item.OrganizationId == organizationId, cancellationToken);
+
+    public async Task<IBranchTransaction> BeginTransactionAsync(CancellationToken cancellationToken) =>
+        new BranchTransaction(await dbContext.Database.BeginTransactionAsync(cancellationToken));
+
     public void AddBranch(Branch branch) => dbContext.Branches.Add(branch);
     public void AddUserAccount(UserAccount account) => dbContext.UserAccounts.Add(account);
     public void AddAccountEmail(AccountEmail accountEmail) => dbContext.AccountEmails.Add(accountEmail);
@@ -326,4 +342,12 @@ public sealed class BranchRepository(LegariaDbContext dbContext) : IBranchReposi
         value.Replace("\\", "\\\\", StringComparison.Ordinal)
             .Replace("%", "\\%", StringComparison.Ordinal)
             .Replace("_", "\\_", StringComparison.Ordinal);
+
+    private sealed class BranchTransaction(IDbContextTransaction transaction) : IBranchTransaction
+    {
+        public Task CommitAsync(CancellationToken cancellationToken) =>
+            transaction.CommitAsync(cancellationToken);
+
+        public ValueTask DisposeAsync() => transaction.DisposeAsync();
+    }
 }

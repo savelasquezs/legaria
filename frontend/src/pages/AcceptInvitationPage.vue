@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AuthShell from '../components/AuthShell.vue'
+import AppAlert from '../components/AppAlert.vue'
+import { icons } from '../design-system/icons'
 import { api, getProblem } from '../services/api'
 
 const route = useRoute()
@@ -48,18 +50,18 @@ async function submit(): Promise<void> {
 <template>
   <AuthShell title="Activa tu cuenta" description="Define la contraseña con la que ingresarás a Legaria.">
     <div v-if="accepted" class="text-center">
-      <q-icon name="check_circle" color="positive" size="58px" />
+      <q-icon :name="icons.check" color="positive" size="58px" />
       <h2>Cuenta activada</h2>
       <p class="auth-copy q-mb-lg">Tu correo quedó verificado. Ya puedes iniciar sesión.</p>
       <q-btn unelevated no-caps color="primary" label="Ir al inicio de sesión" class="auth-submit full-width" @click="router.replace('/')" />
     </div>
     <template v-else>
-      <q-banner v-if="!token" class="bg-red-1 text-negative q-mb-md rounded-borders" role="alert">
+      <AppAlert v-if="!token" tone="danger">
         El enlace no contiene una invitación válida.
-      </q-banner>
-      <q-banner v-if="errorMessage" class="bg-red-1 text-negative q-mb-md rounded-borders" role="alert">
+      </AppAlert>
+      <AppAlert v-if="errorMessage" tone="danger">
         {{ errorMessage }}
-      </q-banner>
+      </AppAlert>
       <q-form class="auth-form" @submit.prevent="submit">
         <q-input
           v-model="password"
@@ -69,8 +71,8 @@ async function submit(): Promise<void> {
           autocomplete="new-password"
           :rules="[(value: string) => value.length >= 8 || 'Usa al menos 8 caracteres.', (value: string) => value.length <= 128 || 'Usa máximo 128 caracteres.']"
         >
-          <template #prepend><q-icon name="lock_outline" /></template>
-          <template #append><q-btn flat round dense :icon="showPassword ? 'visibility_off' : 'visibility'" @click="showPassword = !showPassword" /></template>
+          <template #prepend><q-icon :name="icons.lock" /></template>
+          <template #append><q-btn flat round dense :icon="showPassword ? icons.visibilityOff : icons.visibility" :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'" @click="showPassword = !showPassword"><q-tooltip>{{ showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña' }}</q-tooltip></q-btn></template>
         </q-input>
         <q-input
           v-model="confirmation"
@@ -80,7 +82,7 @@ async function submit(): Promise<void> {
           autocomplete="new-password"
           :rules="[(value: string) => value === password || 'Las contraseñas no coinciden.']"
         >
-          <template #prepend><q-icon name="verified_user" /></template>
+          <template #prepend><q-icon :name="icons.verified" /></template>
         </q-input>
         <q-btn unelevated no-caps size="lg" color="primary" class="auth-submit full-width" label="Activar cuenta" type="submit" :loading="loading" :disable="!valid || loading" />
       </q-form>

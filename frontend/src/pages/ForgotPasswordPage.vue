@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import AuthShell from '../components/AuthShell.vue'
+import AppAlert from '../components/AppAlert.vue'
+import { icons } from '../design-system/icons'
 import { api } from '../services/api'
 
 const email = ref('')
@@ -30,21 +32,20 @@ async function submit(): Promise<void> {
     description="Te enviaremos un enlace seguro para crear una nueva contraseña."
   >
     <div v-if="sent">
-      <q-banner class="bg-green-1 text-positive rounded-borders" role="status">
+      <AppAlert tone="success">
         Si existe una cuenta asociada al correo, recibirás las instrucciones.
-      </q-banner>
+      </AppAlert>
       <router-link class="auth-link block text-center q-mt-lg" to="/">
         Volver al inicio de sesión
       </router-link>
     </div>
     <q-form v-else class="auth-form" @submit.prevent="submit">
-      <q-banner
+      <AppAlert
         v-if="errorMessage"
-        class="bg-red-1 text-negative rounded-borders"
-        role="alert"
+        tone="danger"
       >
         {{ errorMessage }}
-      </q-banner>
+      </AppAlert>
       <q-input
         v-model.trim="email"
         outlined
@@ -57,7 +58,7 @@ async function submit(): Promise<void> {
         ]"
         lazy-rules
       >
-        <template #prepend><q-icon name="mail_outline" /></template>
+        <template #prepend><q-icon :name="icons.mail" /></template>
       </q-input>
       <q-btn
         unelevated

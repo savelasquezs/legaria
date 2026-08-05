@@ -104,6 +104,19 @@ No crear todas las carpetas si permanecerán vacías.
 
 ## Frontend
 
+### Design System Obligatorio
+
+- La interfaz usa exclusivamente modo oscuro, Inter y Material Symbols Rounded.
+- Todo color visual debe provenir de tokens semánticos definidos en `frontend/src/styles/_tokens.scss`; se prohíben colores hexadecimales, RGB, HSL o utilidades cromáticas aisladas fuera de ese archivo.
+- La escala de espaciado es de 8 px. El medio paso de 4 px se reserva para controles compactos.
+- El radio base es de 8 px. El formato píldora se reserva para chips y avatares.
+- Se deben reutilizar los componentes del sistema existentes antes de crear otro componente o patrón visual.
+- Se prohíben estilos visuales aislados por pantalla y duplicados de patrones cubiertos por el sistema.
+- Los componentes y pantallas deben contemplar hover, active, focus visible, disabled, loading, error y comportamiento responsive.
+- Las acciones representadas únicamente por iconos deben tener nombre accesible y tooltip.
+- Los estados no pueden comunicarse únicamente mediante color y deben mantener contraste WCAG 2.2 AA.
+- Los tokens semánticos y la consistencia del producto prevalecen sobre preferencias visuales individuales.
+
 ### Objetivo visual
 
 Toda interfaz debe verse terminada, consistente y agradable; no basta con que funcione. Debe ser responsive, clara, accesible y apropiada para uso diario administrativo.

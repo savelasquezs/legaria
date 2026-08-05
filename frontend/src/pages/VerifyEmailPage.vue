@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import AuthShell from '../components/AuthShell.vue'
+import AppAlert from '../components/AppAlert.vue'
 import { api, getProblem } from '../services/api'
 
 type VerificationState = 'loading' | 'verified' | 'invalid' | 'expired' | 'error'
@@ -44,20 +45,20 @@ onMounted(async () => {
   >
     <div v-if="state === 'loading'" class="text-center q-py-lg" role="status">
       <q-spinner color="primary" size="44px" />
-      <p class="text-grey-7 q-mb-none q-mt-md">Verificando correo…</p>
+      <p class="loading-copy">Verificando correo…</p>
     </div>
     <div v-else-if="state === 'verified'">
-      <q-banner class="bg-green-1 text-positive rounded-borders" role="status">
+      <AppAlert tone="success">
         Tu correo quedó verificado. Ya puedes iniciar sesión.
-      </q-banner>
+      </AppAlert>
       <router-link class="auth-link block text-center q-mt-lg" to="/">
         Iniciar sesión
       </router-link>
     </div>
     <div v-else>
-      <q-banner class="bg-red-1 text-negative rounded-borders" role="alert">
+      <AppAlert tone="danger">
         {{ message }}
-      </q-banner>
+      </AppAlert>
       <router-link class="auth-link block text-center q-mt-lg" to="/">
         Volver al inicio de sesión
       </router-link>

@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AuthShell from '../components/AuthShell.vue'
+import AppAlert from '../components/AppAlert.vue'
+import { icons } from '../design-system/icons'
 import { api, getProblem } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 
@@ -54,10 +56,9 @@ async function resendVerification(): Promise<void> {
     title="Bienvenido de nuevo"
     description="Ingresa con tu correo y contraseña para continuar."
   >
-    <q-banner
+    <AppAlert
       v-if="errorMessage"
-      class="bg-red-1 text-negative q-mb-md rounded-borders"
-      role="alert"
+      tone="danger"
     >
       {{ errorMessage }}
       <template v-if="canResendVerification" #action>
@@ -68,14 +69,13 @@ async function resendVerification(): Promise<void> {
           @click="resendVerification"
         />
       </template>
-    </q-banner>
-    <q-banner
+    </AppAlert>
+    <AppAlert
       v-if="verificationSent"
-      class="bg-green-1 text-positive q-mb-md rounded-borders"
-      role="status"
+      tone="success"
     >
       Si la cuenta requiere verificación, recibirás un nuevo enlace.
-    </q-banner>
+    </AppAlert>
 
     <q-form class="auth-form" @submit.prevent="submit">
       <q-input
@@ -90,7 +90,7 @@ async function resendVerification(): Promise<void> {
         ]"
         lazy-rules
       >
-        <template #prepend><q-icon name="mail_outline" /></template>
+        <template #prepend><q-icon :name="icons.mail" /></template>
       </q-input>
       <q-input
         v-model="password"
@@ -104,16 +104,18 @@ async function resendVerification(): Promise<void> {
         ]"
         lazy-rules
       >
-        <template #prepend><q-icon name="lock_outline" /></template>
+        <template #prepend><q-icon :name="icons.lock" /></template>
         <template #append>
           <q-btn
             flat
             round
             dense
-            :icon="showPassword ? 'visibility_off' : 'visibility'"
+            :icon="showPassword ? icons.visibilityOff : icons.visibility"
             :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
             @click="showPassword = !showPassword"
-          />
+          >
+            <q-tooltip>{{ showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña' }}</q-tooltip>
+          </q-btn>
         </template>
       </q-input>
 

@@ -102,7 +102,7 @@ El script realiza estas operaciones:
 1. Valida las variables obligatorias de `.env`.
 2. Genera una clave JWT y una contraseña de certificado aleatorias.
 3. Guarda ambos secretos únicamente en `.env`.
-4. Genera y confía `.local/https/legaria-local.pfx`.
+4. Genera y confía `.local/https/legaria-local.pfx`, utilizado por la API y Vite.
 5. Crea `frontend/.env.local` con la URL HTTPS de la API.
 6. Construye la imagen .NET 8.
 7. Inicia PostgreSQL.
@@ -156,7 +156,7 @@ npm.cmd run dev
 Abrir:
 
 ```text
-http://localhost:5173
+https://localhost:5173
 ```
 
 Iniciar sesión con `BOOTSTRAP_OWNER_EMAIL` y `BOOTSTRAP_OWNER_PASSWORD` del
@@ -165,6 +165,10 @@ Iniciar sesión con `BOOTSTRAP_OWNER_EMAIL` y `BOOTSTRAP_OWNER_PASSWORD` del
 Al cargar la página sin una sesión anterior, `/api/auth/refresh` puede responder
 401 con `auth.invalid_refresh_token`. Es esperado y no bloquea el login: la
 aplicación está comprobando si existe una cookie de sesión previa.
+
+Frontend y API deben conservar HTTPS y el host `localhost`. Así la cookie
+`SameSite=Lax` puede renovar la sesión después de una recarga sin exponerse a
+JavaScript ni depender de cookies de terceros.
 
 ## 7. Arranques posteriores
 

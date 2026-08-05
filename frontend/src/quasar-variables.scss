@@ -1,0 +1,17 @@
+@use './styles/tokens' as tokens;
+
+$primary: tokens.$color-primary;
+$secondary: tokens.$color-surface-elevated;
+$accent: tokens.$color-accent;
+$dark: tokens.$color-surface;
+$dark-page: tokens.$color-canvas;
+$positive: tokens.$color-success;
+$negative: tokens.$color-danger;
+$info: tokens.$color-info;
+$warning: tokens.$color-warning;
+$body-font-size: tokens.$font-size-body;
+$body-font-family: tokens.$font-family;
+$generic-border-radius: tokens.$radius;
+$button-border-radius: tokens.$radius;
+$input-font-size: tokens.$font-size-body;
+$space-base: tokens.$space-2;

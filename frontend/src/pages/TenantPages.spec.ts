@@ -62,15 +62,15 @@ describe('tenant pages', () => {
       global: {
         stubs: {
           TenantLayout: { template: '<div><slot /></div>' },
-          QTable: {
-            props: ['rows', 'noDataLabel'],
-            template: '<div>{{ rows.length === 0 ? noDataLabel : "" }}</div>',
+          AppDataTable: {
+            props: ['rows', 'emptyTitle'],
+            template: '<div>{{ rows.length === 0 ? emptyTitle : "" }}</div>',
           },
         },
       },
     })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Todavía no hay sucursales para mostrar.')
+    expect(wrapper.text()).toContain('No hay sucursales')
   })
 })

@@ -1,58 +1,18 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed } from 'vue'
+import AppShell, { type NavigationItem } from './AppShell.vue'
+import { icons } from '../design-system/icons'
 import { useAuthStore } from '../stores/auth'
 
-const route = useRoute()
-const router = useRouter()
 const auth = useAuthStore()
-const loggingOut = ref(false)
-const isSuperAdmin = computed(() => auth.account?.roles.includes('SUPER_ADMIN') === true)
-
-async function logout(): Promise<void> {
-  loggingOut.value = true
-  await auth.logout()
-  await router.replace('/')
-}
+const roleLabel = computed(() => auth.account?.roles.includes('SUPER_ADMIN') ? 'Superadministrador' : 'Administrador de sucursal')
+const navigation: NavigationItem[] = [
+  { label: 'Sucursales', icon: icons.storefront, to: '/app/branches' },
+]
 </script>
 
 <template>
-  <q-layout view="hHh lpR fFf" class="tenant-layout">
-    <q-header class="tenant-header">
-      <q-toolbar class="tenant-toolbar">
-        <router-link class="platform-brand" to="/app/branches">
-          <span class="brand-dot" aria-hidden="true" />
-          LEGARIA
-        </router-link>
-        <nav class="tenant-nav" aria-label="Navegación tenant">
-          <q-btn
-            flat
-            no-caps
-            icon="storefront"
-            label="Sucursales"
-            :class="{ active: route.path.startsWith('/app/branches') }"
-            to="/app/branches"
-          />
-        </nav>
-        <q-space />
-        <div class="platform-user gt-sm">
-          <span>{{ auth.account?.firstName }} {{ auth.account?.lastName }}</span>
-          <small>{{ isSuperAdmin ? 'Superadministrador' : 'Administrador de sucursal' }}</small>
-        </div>
-        <q-btn
-          flat
-          round
-          icon="logout"
-          aria-label="Cerrar sesión"
-          :loading="loggingOut"
-          @click="logout"
-        />
-      </q-toolbar>
-    </q-header>
-    <q-page-container>
-      <q-page class="platform-page">
-        <slot />
-      </q-page>
-    </q-page-container>
-  </q-layout>
+  <AppShell home-to="/app/branches" context-label="Organización" :role-label="roleLabel" :navigation="navigation">
+    <slot />
+  </AppShell>
 </template>

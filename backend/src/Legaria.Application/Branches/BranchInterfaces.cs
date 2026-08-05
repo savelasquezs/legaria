@@ -10,6 +10,11 @@ public sealed record BranchAdministratorQueryItem(
     AccountToken? Invitation,
     IReadOnlyCollection<Branch> Branches);
 
+public interface IBranchTransaction : IAsyncDisposable
+{
+    Task CommitAsync(CancellationToken cancellationToken);
+}
+
 public interface IBranchRepository
 {
     Task<(IReadOnlyCollection<BranchQueryItem> Items, int Total)> ListBranchesAsync(
@@ -65,6 +70,9 @@ public interface IBranchRepository
         Guid accountId,
         CancellationToken cancellationToken);
     Task<Organization?> FindOrganizationAsync(Guid organizationId, CancellationToken cancellationToken);
+    Task<Organization?> FindOrganizationForUpdateAsync(Guid organizationId, CancellationToken cancellationToken);
+    Task<bool> OrganizationHasBranchesAsync(Guid organizationId, CancellationToken cancellationToken);
+    Task<IBranchTransaction> BeginTransactionAsync(CancellationToken cancellationToken);
     void AddBranch(Branch branch);
     void AddUserAccount(UserAccount account);
     void AddAccountEmail(AccountEmail accountEmail);
@@ -85,6 +93,12 @@ public interface IBranchService
         CancellationToken cancellationToken);
     Task<BranchResult> GetBranchAsync(Guid id, CurrentAccount actor, CancellationToken cancellationToken);
     Task<BranchResult> CreateBranchAsync(
+        BranchInput input,
+        CurrentAccount actor,
+        ClientContext client,
+        CancellationToken cancellationToken);
+    Task<BranchResult> CreateInitialBranchAsync(
+        Guid organizationId,
         BranchInput input,
         CurrentAccount actor,
         ClientContext client,

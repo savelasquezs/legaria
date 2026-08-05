@@ -154,6 +154,7 @@ if (-not $SkipStart) {
 
 Write-Host ''
 Write-Host 'Legaria local preparada:'
+Write-Host '  Frontend: https://localhost:5173'
 Write-Host "  API: https://localhost:$apiHttpsPort"
 Write-Host "  PostgreSQL: localhost:$($environment['POSTGRES_PORT']) / legaria / legaria_local"
 Write-Host "  Usuario: $($environment['BOOTSTRAP_OWNER_EMAIL'])"

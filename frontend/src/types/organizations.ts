@@ -44,6 +44,7 @@ export interface Organization {
   createdAt: string
   updatedAt: string
   initialAdmin: InitialAdministrator
+  hasBranches: boolean
 }
 
 export interface OrganizationListItem {

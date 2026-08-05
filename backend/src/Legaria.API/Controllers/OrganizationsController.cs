@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Legaria.API.Security;
 using Legaria.Application.Authentication;
+using Legaria.Application.Branches;
 using Legaria.Application.Organizations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +13,7 @@ namespace Legaria.API.Controllers;
 [Authorize(Policy = AuthorizationPolicies.PlatformAdminOrOwner)]
 public sealed class OrganizationsController(
     IOrganizationService organizationService,
+    IBranchService branchService,
     ICurrentUser currentUser) : ControllerBase
 {
     [HttpGet]
@@ -97,6 +99,21 @@ public sealed class OrganizationsController(
             currentUser.ToCurrentAccount(),
             CreateClientContext(),
             cancellationToken));
+
+    [HttpPost("{id:guid}/initial-branch")]
+    public async Task<ActionResult<BranchResult>> CreateInitialBranch(
+        Guid id,
+        BranchInputModel input,
+        CancellationToken cancellationToken)
+    {
+        var result = await branchService.CreateInitialBranchAsync(
+            id,
+            input.ToRequest(),
+            currentUser.ToCurrentAccount(),
+            CreateClientContext(),
+            cancellationToken);
+        return Created($"/api/platform/organizations/{id}/initial-branch", result);
+    }
 
     private ClientContext CreateClientContext() => new(
         HttpContext.Connection.RemoteIpAddress?.ToString(),

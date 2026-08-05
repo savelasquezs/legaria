@@ -2,10 +2,20 @@
 import { Notify } from 'quasar'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AppDialog from '../components/AppDialog.vue'
+import AppAlert from '../components/AppAlert.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+import FormSection from '../components/FormSection.vue'
+import LoadingSkeleton from '../components/LoadingSkeleton.vue'
+import PageHeader from '../components/PageHeader.vue'
 import PlatformLayout from '../components/PlatformLayout.vue'
+import StatusChip from '../components/StatusChip.vue'
+import { icons } from '../design-system/icons'
+import { optionalEmailRule, optionalPhoneRule, requiredRule } from '../helpers/branchFormRules'
 import { getProblem } from '../services/api'
 import {
   changeOrganizationStatus,
+  createInitialBranch,
   createOrganization,
   getDepartments,
   getMunicipalities,
@@ -23,6 +33,7 @@ import type {
   Organization,
   OrganizationData,
 } from '../types/organizations'
+import type { BranchData } from '../types/branches'
 
 const route = useRoute()
 const router = useRouter()
@@ -35,11 +46,20 @@ const saving = ref(false)
 const adminSaving = ref(false)
 const sending = ref(false)
 const changingStatus = ref(false)
+const statusDialog = ref(false)
+const branchSuggestion = ref(false)
+const branchDialog = ref(false)
+const branchSaving = ref(false)
+const branchLocationLoading = ref(false)
+const branchError = ref('')
 const errorMessage = ref('')
 const organization = ref<Organization | null>(null)
 const departments = ref<Department[]>([])
 const municipalities = ref<Municipality[]>([])
 const departmentCode = ref<string | null>(null)
+const branchDepartmentCode = ref<string | null>(null)
+const branchMunicipalities = ref<Municipality[]>([])
+const branchForm = ref<{ validate: () => Promise<boolean> } | null>(null)
 
 const company = reactive<OrganizationData>({
   tradeName: '',
@@ -56,9 +76,15 @@ const admin = reactive<InitialAdministratorData>({
   lastName: '',
   email: '',
 })
+const initialBranch = reactive<BranchData>({
+  name: 'Sede principal',
+  contactEmail: null,
+  phone: null,
+  address: '',
+  municipalityCode: '',
+})
 
 const emailRule = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || 'Ingresa un correo válido.'
-const requiredRule = (value: string) => Boolean(value?.trim()) || 'Este campo es obligatorio.'
 const nitIsValid = computed(() =>
   /^[0-9]{6,14}$/.test(company.nit) &&
   calculateVerificationDigit(company.nit) === Number(company.verificationDigit),
@@ -97,6 +123,56 @@ async function loadMunicipalities(clearSelection = true): Promise<void> {
   municipalities.value = departmentCode.value
     ? await getMunicipalities(departmentCode.value)
     : []
+}
+
+async function loadBranchMunicipalities(clearSelection = true): Promise<void> {
+  if (clearSelection) initialBranch.municipalityCode = ''
+  branchLocationLoading.value = true
+  try {
+    branchMunicipalities.value = branchDepartmentCode.value
+      ? await getMunicipalities(branchDepartmentCode.value)
+      : []
+  } catch (error) {
+    branchError.value = getProblem(error)?.detail ?? 'No fue posible cargar los municipios.'
+  } finally {
+    branchLocationLoading.value = false
+  }
+}
+
+async function openInitialBranchDialog(): Promise<void> {
+  if (!organization.value || organization.value.hasBranches) return
+  branchError.value = ''
+  Object.assign(initialBranch, {
+    name: 'Sede principal',
+    contactEmail: organization.value.contactEmail,
+    phone: organization.value.phone,
+    address: organization.value.address,
+    municipalityCode: organization.value.municipalityCode,
+  })
+  branchDepartmentCode.value = organization.value.departmentCode
+  branchDialog.value = true
+  await loadBranchMunicipalities(false)
+}
+
+async function acceptBranchSuggestion(): Promise<void> {
+  branchSuggestion.value = false
+  await openInitialBranchDialog()
+}
+
+async function saveInitialBranch(): Promise<void> {
+  if (!organization.value || branchSaving.value || !(await branchForm.value?.validate())) return
+  branchSaving.value = true
+  branchError.value = ''
+  try {
+    await createInitialBranch(organization.value.id, { ...initialBranch })
+    organization.value = { ...organization.value, hasBranches: true }
+    branchDialog.value = false
+    Notify.create({ type: 'positive', message: 'Primera sucursal creada.' })
+  } catch (error) {
+    branchError.value = getProblem(error)?.detail ?? 'No fue posible crear la sucursal.'
+  } finally {
+    branchSaving.value = false
+  }
 }
 
 async function load(): Promise<void> {
@@ -151,6 +227,7 @@ async function saveCompany(): Promise<void> {
             : 'Organización creada e invitación procesada.',
       })
       await router.replace(`/platform/organizations/${created.id}`)
+      branchSuggestion.value = true
     }
   } catch (error) {
     errorMessage.value = getProblem(error)?.detail ?? 'No fue posible guardar la organización.'
@@ -196,13 +273,7 @@ async function resend(): Promise<void> {
 async function toggleStatus(): Promise<void> {
   if (!organizationId.value || !organization.value || changingStatus.value) return
   const suspending = organization.value.status === 'ACTIVE'
-  const accepted = globalThis.confirm(
-    suspending
-      ? 'Suspender esta organización bloqueará inmediatamente el login, refresh y acceso de todas sus cuentas tenant. ¿Deseas continuar?'
-      : '¿Deseas reactivar la organización y recuperar el acceso de sus cuentas?',
-  )
-  if (!accepted) return
-
+  statusDialog.value = false
   changingStatus.value = true
   errorMessage.value = ''
   try {
@@ -227,22 +298,23 @@ onMounted(load)
 <template>
   <PlatformLayout>
     <main class="platform-content form-content">
-      <q-btn flat no-caps icon="arrow_back" label="Volver" class="back-action" @click="router.push('/platform')" />
-
-      <header class="page-heading compact-heading">
-        <div>
-          <p class="eyebrow">{{ editing ? 'Detalle de organización' : 'Aprovisionamiento tenant' }}</p>
-          <h1>{{ editing ? organization?.tradeName ?? 'Organización' : 'Nueva organización' }}</h1>
-          <p v-if="editing && organization">NIT {{ organization.nit }}-{{ organization.verificationDigit }}</p>
-          <p v-else>Crea la empresa y envía una invitación segura a su primer superadministrador.</p>
-        </div>
-        <div v-if="editing && organization" class="heading-actions">
-          <q-chip
+      <PageHeader
+        :context="editing ? 'Detalle de organización' : 'Aprovisionamiento tenant'"
+        :title="editing ? organization?.tradeName ?? 'Organización' : 'Nueva organización'"
+        :description="editing && organization ? `NIT ${organization.nit}-${organization.verificationDigit}` : 'Crea la empresa y envía una invitación segura a su primer superadministrador.'"
+        back-to="/platform"
+      >
+        <template v-if="editing && organization" #actions>
+          <StatusChip :tone="organization.status === 'ACTIVE' ? 'success' : 'danger'" :label="organization.status === 'ACTIVE' ? 'Activa' : 'Suspendida'" />
+          <q-btn
+            v-if="!organization.hasBranches"
             outline
-            :color="organization.status === 'ACTIVE' ? 'positive' : 'negative'"
-          >
-            {{ organization.status === 'ACTIVE' ? 'Activa' : 'Suspendida' }}
-          </q-chip>
+            no-caps
+            color="primary"
+            :icon="icons.addBusiness"
+            label="Crear primera sucursal"
+            @click="openInitialBranchDialog"
+          />
           <q-btn
             v-if="isOwner"
             outline
@@ -250,121 +322,225 @@ onMounted(load)
             :color="organization.status === 'ACTIVE' ? 'negative' : 'positive'"
             :label="organization.status === 'ACTIVE' ? 'Suspender' : 'Reactivar'"
             :loading="changingStatus"
-            @click="toggleStatus"
+            @click="statusDialog = true"
           />
-        </div>
-      </header>
+        </template>
+      </PageHeader>
 
-      <q-banner v-if="errorMessage" class="bg-red-1 text-negative q-mb-lg rounded-borders" role="alert">
+      <AppAlert v-if="errorMessage" tone="danger">
         {{ errorMessage }}
-      </q-banner>
-      <div v-if="loading" class="loading-state"><q-spinner color="primary" size="42px" /></div>
+      </AppAlert>
+      <LoadingSkeleton v-if="loading" variant="form" :rows="8" />
 
       <template v-else>
         <q-form class="organization-grid" @submit.prevent="saveCompany">
-          <q-card flat bordered class="platform-card form-card">
-            <q-card-section>
-              <div class="section-heading">
-                <q-icon name="business" />
-                <div><h2>Empresa</h2><p>Información legal y de contacto.</p></div>
-              </div>
-              <div class="fields-grid">
-                <q-input v-model="company.tradeName" outlined label="Nombre comercial" :rules="[requiredRule]" />
-                <q-input v-model="company.legalName" outlined label="Razón social" :rules="[requiredRule]" />
-                <q-input
-                  v-model="company.nit"
-                  outlined
-                  label="NIT sin DV"
-                  maxlength="14"
-                  :rules="[
-                    (value: string) => /^[0-9]{6,14}$/.test(value) || 'Usa entre 6 y 14 dígitos, sin puntos ni guiones.',
-                  ]"
-                />
-                <q-input
-                  v-model.number="company.verificationDigit"
-                  outlined
-                  type="number"
-                  min="0"
-                  max="9"
-                  label="Dígito de verificación"
-                  :rules="[() => nitIsValid || 'El DV no corresponde al NIT.']"
-                />
-                <q-input v-model="company.contactEmail" outlined type="email" label="Correo de contacto" :rules="[requiredRule, emailRule]" />
-                <q-input v-model="company.phone" outlined label="Teléfono" :rules="[requiredRule]" />
-                <q-input v-model="company.address" outlined label="Dirección" :rules="[requiredRule]" class="span-two" />
-                <q-select
-                  v-model="departmentCode"
-                  outlined
-                  emit-value
-                  map-options
-                  option-value="code"
-                  option-label="name"
-                  :options="departments"
-                  label="Departamento"
-                  :rules="[(value: string) => Boolean(value) || 'Selecciona un departamento.']"
-                  @update:model-value="() => loadMunicipalities()"
-                />
-                <q-select
-                  v-model="company.municipalityCode"
-                  outlined
-                  emit-value
-                  map-options
-                  option-value="code"
-                  option-label="name"
-                  :options="municipalities"
-                  label="Municipio"
-                  :disable="!departmentCode"
-                  :rules="[(value: string) => Boolean(value) || 'Selecciona un municipio.']"
-                />
-              </div>
-            </q-card-section>
-            <q-card-actions align="right" class="q-pa-md q-pt-none">
+          <FormSection title="Empresa" description="Información legal y de contacto." :icon="icons.apartment">
+            <div class="fields-grid">
+              <q-input v-model="company.tradeName" outlined label="Nombre comercial" :rules="[requiredRule]" />
+              <q-input v-model="company.legalName" outlined label="Razón social" :rules="[requiredRule]" />
+              <q-input
+                v-model="company.nit"
+                outlined
+                label="NIT sin DV"
+                maxlength="14"
+                :rules="[
+                  (value: string) => /^[0-9]{6,14}$/.test(value) || 'Usa entre 6 y 14 dígitos, sin puntos ni guiones.',
+                ]"
+              />
+              <q-input
+                v-model.number="company.verificationDigit"
+                outlined
+                type="number"
+                min="0"
+                max="9"
+                label="Dígito de verificación"
+                :rules="[() => nitIsValid || 'El DV no corresponde al NIT.']"
+              />
+              <q-input v-model="company.contactEmail" outlined type="email" label="Correo de contacto" :rules="[requiredRule, emailRule]" />
+              <q-input v-model="company.phone" outlined label="Teléfono" :rules="[requiredRule]" />
+              <q-input v-model="company.address" outlined label="Dirección" :rules="[requiredRule]" class="span-two" />
+              <q-select
+                v-model="departmentCode"
+                outlined
+                emit-value
+                map-options
+                option-value="code"
+                option-label="name"
+                :options="departments"
+                label="Departamento"
+                :rules="[(value: string) => Boolean(value) || 'Selecciona un departamento.']"
+                @update:model-value="() => loadMunicipalities()"
+              />
+              <q-select
+                v-model="company.municipalityCode"
+                outlined
+                emit-value
+                map-options
+                option-value="code"
+                option-label="name"
+                :options="municipalities"
+                label="Municipio"
+                :disable="!departmentCode"
+                :rules="[(value: string) => Boolean(value) || 'Selecciona un municipio.']"
+              />
+            </div>
+            <template v-if="editing" #actions>
               <q-btn
                 unelevated
                 no-caps
                 color="primary"
-                :label="editing ? 'Guardar datos' : 'Crear organización'"
+                label="Guardar datos"
                 type="submit"
                 :loading="saving"
                 :disable="!nitIsValid"
               />
-            </q-card-actions>
-          </q-card>
+            </template>
+          </FormSection>
 
-          <q-card flat bordered class="platform-card form-card">
-            <q-card-section>
-              <div class="section-heading">
-                <q-icon name="admin_panel_settings" />
-                <div><h2>Superadministrador inicial</h2><p>No se comparte ninguna contraseña.</p></div>
+          <FormSection title="Superadministrador inicial" description="No se comparte ninguna contraseña." :icon="icons.admin">
+            <AppAlert
+              v-if="editing && organization"
+              :tone="organization.initialAdmin.invitationStatus === 'DELIVERY_FAILED' ? 'danger' : 'info'"
+            >
+              <strong>{{ invitationLabel(organization.initialAdmin.invitationStatus) }}</strong>
+              <div v-if="organization.initialAdmin.invitationExpiresAt" class="text-caption">
+                Vigente hasta {{ new Date(organization.initialAdmin.invitationExpiresAt).toLocaleString('es-CO') }}
               </div>
-
-              <q-banner
-                v-if="editing && organization"
-                :class="organization.initialAdmin.invitationStatus === 'DELIVERY_FAILED' ? 'bg-orange-1 text-warning' : 'bg-blue-1 text-primary'"
-                class="q-mb-lg rounded-borders"
-              >
-                <strong>{{ invitationLabel(organization.initialAdmin.invitationStatus) }}</strong>
-                <div v-if="organization.initialAdmin.invitationExpiresAt" class="text-caption">
-                  Vigente hasta {{ new Date(organization.initialAdmin.invitationExpiresAt).toLocaleString('es-CO') }}
-                </div>
-                <div v-if="organization.initialAdmin.invitationStatus === 'DELIVERY_FAILED'" class="text-caption">
-                  La organización quedó creada. Revisa Resend y usa “Reenviar invitación”.
-                </div>
-              </q-banner>
-
-              <div class="fields-grid">
-                <q-input v-model="admin.firstName" outlined label="Nombres" :disable="editing && !adminIsPending" :rules="[requiredRule]" />
-                <q-input v-model="admin.lastName" outlined label="Apellidos" :disable="editing && !adminIsPending" :rules="[requiredRule]" />
-                <q-input v-model="admin.email" outlined type="email" label="Correo de acceso" class="span-two" :disable="editing && !adminIsPending" :rules="[requiredRule, emailRule]" />
+              <div v-if="organization.initialAdmin.invitationStatus === 'DELIVERY_FAILED'" class="text-caption">
+                La organización quedó creada. Revisa Resend y usa “Reenviar invitación”.
               </div>
-            </q-card-section>
-            <q-card-actions v-if="editing && adminIsPending" align="right" class="q-pa-md q-pt-none admin-actions">
+            </AppAlert>
+
+            <div class="fields-grid">
+              <q-input v-model="admin.firstName" outlined label="Nombres" :disable="editing && !adminIsPending" :rules="[requiredRule]" />
+              <q-input v-model="admin.lastName" outlined label="Apellidos" :disable="editing && !adminIsPending" :rules="[requiredRule]" />
+              <q-input v-model="admin.email" outlined type="email" label="Correo de acceso" class="span-two" :disable="editing && !adminIsPending" :rules="[requiredRule, emailRule]" />
+            </div>
+            <template v-if="editing && adminIsPending" #actions>
               <q-btn flat no-caps color="primary" label="Reenviar invitación" :loading="sending" @click="resend" />
               <q-btn unelevated no-caps color="primary" label="Guardar y reinvitar" :loading="adminSaving" :disable="!adminIsValid" @click="saveAdmin" />
-            </q-card-actions>
-          </q-card>
+            </template>
+          </FormSection>
+
+          <div v-if="!editing" class="provisioning-actions">
+            <p>La organización y su superadministrador inicial se crearán en una sola operación.</p>
+            <q-btn
+              unelevated
+              no-caps
+              color="primary"
+              label="Crear organización"
+              type="submit"
+              :loading="saving"
+              :disable="!nitIsValid || !adminIsValid"
+            />
+          </div>
         </q-form>
       </template>
+
+      <ConfirmDialog
+        v-model="branchSuggestion"
+        title="Organización creada"
+        message="¿Deseas configurar ahora la primera sucursal reutilizando los datos de contacto y ubicación de la organización?"
+        tone="acceptance"
+        confirm-label="Crear sucursal"
+        cancel-label="Ahora no"
+        @confirm="acceptBranchSuggestion"
+      />
+
+      <ConfirmDialog
+        v-if="organization"
+        v-model="statusDialog"
+        :title="organization.status === 'ACTIVE' ? 'Suspender organización' : 'Reactivar organización'"
+        :message="organization.status === 'ACTIVE'
+          ? 'Se bloquearán inmediatamente el login, la renovación de sesión y el acceso de todas las cuentas tenant.'
+          : 'Las cuentas activas de la organización recuperarán el acceso, sin restaurar sesiones revocadas.'"
+        :tone="organization.status === 'ACTIVE' ? 'danger' : 'acceptance'"
+        confirm-label="Confirmar"
+        :loading="changingStatus"
+        @confirm="toggleStatus"
+      />
+
+      <AppDialog
+        v-model="branchDialog"
+        title="Primera sucursal"
+        description="Revisa los datos reutilizados de la organización antes de guardar."
+        :icon="icons.storefront"
+        size="lg"
+        :persistent="branchSaving"
+      >
+        <AppAlert v-if="branchError" tone="danger">
+          {{ branchError }}
+        </AppAlert>
+        <q-form ref="branchForm" @submit.prevent="saveInitialBranch">
+          <div class="fields-grid">
+            <q-input
+              v-model="initialBranch.name"
+              outlined
+              label="Nombre"
+              class="span-two"
+              maxlength="150"
+              :rules="[requiredRule]"
+            />
+            <q-input
+              v-model="initialBranch.contactEmail"
+              outlined
+              type="email"
+              label="Correo de contacto (opcional)"
+              :rules="[optionalEmailRule]"
+            />
+            <q-input
+              v-model="initialBranch.phone"
+              outlined
+              label="Teléfono (opcional)"
+              :rules="[optionalPhoneRule]"
+            />
+            <q-input
+              v-model="initialBranch.address"
+              outlined
+              label="Dirección"
+              class="span-two"
+              maxlength="250"
+              :rules="[requiredRule]"
+            />
+            <q-select
+              v-model="branchDepartmentCode"
+              outlined
+              emit-value
+              map-options
+              option-value="code"
+              option-label="name"
+              :options="departments"
+              label="Departamento"
+              :rules="[(value: string) => Boolean(value) || 'Selecciona un departamento.']"
+              @update:model-value="() => loadBranchMunicipalities()"
+            />
+            <q-select
+              v-model="initialBranch.municipalityCode"
+              outlined
+              emit-value
+              map-options
+              option-value="code"
+              option-label="name"
+              :options="branchMunicipalities"
+              label="Municipio"
+              :loading="branchLocationLoading"
+              :disable="!branchDepartmentCode || branchLocationLoading"
+              :rules="[(value: string) => Boolean(value) || 'Selecciona un municipio.']"
+            />
+          </div>
+        </q-form>
+        <template #actions>
+          <q-btn flat no-caps label="Cancelar" :disable="branchSaving" @click="branchDialog = false" />
+          <q-btn
+            unelevated
+            no-caps
+            color="primary"
+            label="Crear sucursal"
+            :loading="branchSaving"
+            @click="saveInitialBranch"
+          />
+        </template>
+      </AppDialog>
     </main>
   </PlatformLayout>
 </template>

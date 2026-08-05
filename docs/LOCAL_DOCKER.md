@@ -34,7 +34,8 @@ Para preparar los secretos y el certificado sin iniciar Docker:
 powershell -ExecutionPolicy Bypass -File scripts/setup-local.ps1 -SkipStart
 ```
 
-El frontend debe usar `VITE_API_BASE_URL=https://localhost:7007`.
+El frontend se sirve en `https://localhost:5173` usando el PFX generado por el
+script y debe usar `VITE_API_BASE_URL=https://localhost:7007`.
 
 ## Operación cotidiana
 

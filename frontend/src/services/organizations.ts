@@ -9,6 +9,7 @@ import type {
   OrganizationPage,
   OrganizationStatus,
 } from '../types/organizations'
+import type { Branch, BranchData } from '../types/branches'
 
 export async function listOrganizations(params: {
   page: number
@@ -27,6 +28,17 @@ export async function getOrganization(id: string): Promise<Organization> {
 
 export async function createOrganization(input: CreateOrganizationData): Promise<Organization> {
   const { data } = await api.post<Organization>('/api/platform/organizations', input)
+  return data
+}
+
+export async function createInitialBranch(
+  organizationId: string,
+  input: BranchData,
+): Promise<Branch> {
+  const { data } = await api.post<Branch>(
+    `/api/platform/organizations/${organizationId}/initial-branch`,
+    input,
+  )
   return data
 }
 

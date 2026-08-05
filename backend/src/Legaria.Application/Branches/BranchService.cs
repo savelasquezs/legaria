@@ -77,6 +77,58 @@ public sealed class BranchService(
         return await GetBranchAsync(branch.Id, actor, cancellationToken);
     }
 
+    public async Task<BranchResult> CreateInitialBranchAsync(
+        Guid organizationId,
+        BranchInput input,
+        CurrentAccount actor,
+        ClientContext client,
+        CancellationToken cancellationToken)
+    {
+        EnsurePlatformActor(actor);
+        await using var transaction = await repository.BeginTransactionAsync(cancellationToken);
+        _ = await repository.FindOrganizationForUpdateAsync(organizationId, cancellationToken)
+            ?? throw new OrganizationException(
+                OrganizationErrorCodes.NotFound,
+                "La organización no existe.",
+                OrganizationErrorKind.NotFound);
+        if (await repository.OrganizationHasBranchesAsync(organizationId, cancellationToken))
+        {
+            throw new BranchException(
+                BranchErrorCodes.InitialBranchAlreadyExists,
+                "La organización ya tiene una sucursal.",
+                BranchErrorKind.Conflict);
+        }
+
+        var validated = await ValidateBranchAsync(input, organizationId, null, cancellationToken);
+        var now = clock.UtcNow;
+        var branch = Branch.Create(
+            organizationId,
+            validated.Name,
+            validated.NormalizedName,
+            validated.ContactEmail,
+            validated.Phone,
+            validated.Address,
+            validated.MunicipalityCode,
+            now);
+        repository.AddBranch(branch);
+        repository.AddAuditEvent(CreateAudit(
+            "BRANCH_CREATED",
+            actor,
+            organizationId,
+            null,
+            client,
+            now,
+            branch.Id));
+        await repository.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        var result = await repository.FindBranchDetailsAsync(
+            organizationId,
+            branch.Id,
+            null,
+            cancellationToken);
+        return ToBranchResult(result ?? throw BranchNotFound());
+    }
+
     public async Task<BranchResult> UpdateBranchAsync(
         Guid id,
         BranchInput input,
@@ -545,6 +597,17 @@ public sealed class BranchService(
     private static bool IsSuperAdministrator(CurrentAccount actor) =>
         actor.Roles.Contains(SystemRoleCodes.SuperAdmin);
 
+    private static void EnsurePlatformActor(CurrentAccount actor)
+    {
+        if (actor.AccountType != AccountType.Platform)
+        {
+            throw new BranchException(
+                BranchErrorCodes.Forbidden,
+                "La cuenta no puede aprovisionar sucursales.",
+                BranchErrorKind.Forbidden);
+        }
+    }
+
     private static void EnsurePending(UserAccount account)
     {
         if (account.EmailVerifiedAt is not null)
@@ -692,12 +755,13 @@ public sealed class BranchService(
             eventType,
             "SUCCESS",
             now,
-            AccountType.Tenant,
+            actor.AccountType,
+            platformUserId: actor.AccountType == AccountType.Platform ? actor.UserId : null,
             userAccountId: affectedAccountId,
             ipAddress: client.IpAddress,
             userAgent: client.UserAgent,
             organizationId: organizationId,
-            actorUserAccountId: actor.UserId,
+            actorUserAccountId: actor.AccountType == AccountType.Tenant ? actor.UserId : null,
             branchId: branchId);
 
     private sealed record ValidatedBranch(

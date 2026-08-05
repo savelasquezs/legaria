@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import AuthShell from '../components/AuthShell.vue'
+import AppAlert from '../components/AppAlert.vue'
+import { icons } from '../design-system/icons'
 import { api, getProblem } from '../services/api'
 
 const route = useRoute()
@@ -52,21 +54,20 @@ async function submit(): Promise<void> {
     description="Usa entre 8 y 128 caracteres y evita reutilizar una contraseña anterior."
   >
     <div v-if="updated">
-      <q-banner class="bg-green-1 text-positive rounded-borders" role="status">
+      <AppAlert tone="success">
         Tu contraseña fue actualizada. Todas las sesiones anteriores quedaron cerradas.
-      </q-banner>
+      </AppAlert>
       <router-link class="auth-link block text-center q-mt-lg" to="/">
         Iniciar sesión
       </router-link>
     </div>
     <q-form v-else class="auth-form" @submit.prevent="submit">
-      <q-banner
+      <AppAlert
         v-if="errorMessage"
-        class="bg-red-1 text-negative rounded-borders"
-        role="alert"
+        tone="danger"
       >
         {{ errorMessage }}
-      </q-banner>
+      </AppAlert>
       <q-input
         v-model="password"
         outlined
@@ -79,16 +80,18 @@ async function submit(): Promise<void> {
         ]"
         lazy-rules
       >
-        <template #prepend><q-icon name="lock_outline" /></template>
+        <template #prepend><q-icon :name="icons.lock" /></template>
         <template #append>
           <q-btn
             flat
             round
             dense
-            :icon="showPassword ? 'visibility_off' : 'visibility'"
+            :icon="showPassword ? icons.visibilityOff : icons.visibility"
             :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
             @click="showPassword = !showPassword"
-          />
+          >
+            <q-tooltip>{{ showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña' }}</q-tooltip>
+          </q-btn>
         </template>
       </q-input>
       <q-input

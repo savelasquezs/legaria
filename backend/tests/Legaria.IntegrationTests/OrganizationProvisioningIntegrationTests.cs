@@ -1,4 +1,5 @@
 using Legaria.Application.Authentication;
+using Legaria.Application.Branches;
 using Legaria.Application.Configuration;
 using Legaria.Application.Organizations;
 using Legaria.Domain.Authentication;
@@ -12,6 +13,98 @@ namespace Legaria.IntegrationTests;
 [Collection(PostgreSqlCollection.Name)]
 public sealed class OrganizationProvisioningIntegrationTests(PostgreSqlFixture fixture)
 {
+    [Fact]
+    public async Task PlatformCanCreateOnlyOneInitialBranchAndOrganizationReportsIt()
+    {
+        await fixture.ResetAsync();
+        await using var context = fixture.CreateDbContext();
+        var services = await CreateServicesAsync(context);
+        var organization = await services.Organizations.CreateAsync(
+            ValidRequest(), services.Actor, Client(), CancellationToken.None);
+
+        Assert.False(organization.HasBranches);
+        var branch = await services.Branches.CreateInitialBranchAsync(
+            organization.Id,
+            InitialBranch(),
+            services.Actor,
+            Client(),
+            CancellationToken.None);
+
+        Assert.Equal(organization.Id, (await context.Branches.SingleAsync()).OrganizationId);
+        Assert.Equal("Sede principal", branch.Name);
+        Assert.True((await services.Organizations.GetAsync(organization.Id, CancellationToken.None)).HasBranches);
+        var audit = await context.SecurityAuditEvents.SingleAsync(item => item.EventType == "BRANCH_CREATED");
+        Assert.Equal(services.Actor.UserId, audit.PlatformUserId);
+        Assert.Equal(branch.Id, audit.BranchId);
+
+        var duplicate = await Assert.ThrowsAsync<BranchException>(() =>
+            services.Branches.CreateInitialBranchAsync(
+                organization.Id,
+                InitialBranch(),
+                services.Actor,
+                Client(),
+                CancellationToken.None));
+        Assert.Equal(BranchErrorCodes.InitialBranchAlreadyExists, duplicate.Code);
+    }
+
+    [Fact]
+    public async Task InvalidOrMissingOrganizationDoesNotCreateInitialBranch()
+    {
+        await fixture.ResetAsync();
+        await using var context = fixture.CreateDbContext();
+        var services = await CreateServicesAsync(context);
+        var organization = await services.Organizations.CreateAsync(
+            ValidRequest(), services.Actor, Client(), CancellationToken.None);
+
+        var invalid = await Assert.ThrowsAsync<BranchException>(() =>
+            services.Branches.CreateInitialBranchAsync(
+                organization.Id,
+                InitialBranch() with { MunicipalityCode = "99999" },
+                services.Actor,
+                Client(),
+                CancellationToken.None));
+        Assert.Equal(BranchErrorCodes.InvalidMunicipality, invalid.Code);
+        Assert.Empty(await context.Branches.ToArrayAsync());
+        Assert.Single(await context.Organizations.ToArrayAsync());
+
+        var missing = await Assert.ThrowsAsync<OrganizationException>(() =>
+            services.Branches.CreateInitialBranchAsync(
+                Guid.NewGuid(),
+                InitialBranch(),
+                services.Actor,
+                Client(),
+                CancellationToken.None));
+        Assert.Equal(OrganizationErrorCodes.NotFound, missing.Code);
+    }
+
+    [Fact]
+    public async Task ConcurrentInitialBranchRequestsCreateOnlyOneBranch()
+    {
+        await fixture.ResetAsync();
+        Guid organizationId;
+        await using (var setupContext = fixture.CreateDbContext())
+        {
+            var setup = await CreateServicesAsync(setupContext);
+            organizationId = (await setup.Organizations.CreateAsync(
+                ValidRequest(), setup.Actor, Client(), CancellationToken.None)).Id;
+        }
+
+        await using var firstContext = fixture.CreateDbContext();
+        await using var secondContext = fixture.CreateDbContext();
+        var first = await CreateServicesAsync(firstContext);
+        var second = await CreateServicesAsync(secondContext);
+        var results = await Task.WhenAll(
+            CaptureBranchAsync(() => first.Branches.CreateInitialBranchAsync(
+                organizationId, InitialBranch(), first.Actor, Client(), CancellationToken.None)),
+            CaptureBranchAsync(() => second.Branches.CreateInitialBranchAsync(
+                organizationId, InitialBranch() with { Name = "Alterna" }, second.Actor, Client(), CancellationToken.None)));
+
+        Assert.Single(results, item => item is null);
+        Assert.Single(results, item => item is BranchException { Code: BranchErrorCodes.InitialBranchAlreadyExists });
+        await using var verificationContext = fixture.CreateDbContext();
+        Assert.Single(await verificationContext.Branches.ToArrayAsync());
+    }
+
     [Fact]
     public async Task MigrationLoadsVersionedDivipolaAndBackfillsGlobalOwnerEmail()
     {
@@ -254,6 +347,12 @@ public sealed class OrganizationProvisioningIntegrationTests(PostgreSqlFixture f
             tokens,
             clock,
             invitations);
+        var branches = new BranchService(
+            new BranchRepository(context),
+            normalizer,
+            tokens,
+            invitations,
+            clock);
         var authentication = new AuthenticationService(
             authenticationRepository,
             passwords,
@@ -273,7 +372,7 @@ public sealed class OrganizationProvisioningIntegrationTests(PostgreSqlFixture f
             clock,
             authenticationOptions,
             frontendOptions);
-        return new TestServices(organizations, authentication, passwords, email, actor);
+        return new TestServices(organizations, branches, authentication, passwords, email, actor);
     }
 
     private static CreateOrganizationRequest ValidRequest() => new(
@@ -288,6 +387,26 @@ public sealed class OrganizationProvisioningIntegrationTests(PostgreSqlFixture f
         new InitialAdministratorInput("Ana", "Prueba", "admin@empresa.test"));
 
     private static ClientContext Client() => new("127.0.0.1", "organization-tests");
+
+    private static BranchInput InitialBranch() => new(
+        "Sede principal",
+        "contacto@empresa.test",
+        "+573001112233",
+        "Carrera 7 # 10-20",
+        "11001");
+
+    private static async Task<Exception?> CaptureBranchAsync(Func<Task<BranchResult>> action)
+    {
+        try
+        {
+            await action();
+            return null;
+        }
+        catch (Exception exception)
+        {
+            return exception;
+        }
+    }
 
     private static async Task<Exception?> CaptureAsync(Func<Task<OrganizationResult>> action)
     {
@@ -310,6 +429,7 @@ public sealed class OrganizationProvisioningIntegrationTests(PostgreSqlFixture f
 
     private sealed record TestServices(
         OrganizationService Organizations,
+        BranchService Branches,
         AuthenticationService Authentication,
         PasswordService Passwords,
         TestEmailSender Email,

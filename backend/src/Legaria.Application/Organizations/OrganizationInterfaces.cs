@@ -8,7 +8,8 @@ public sealed record OrganizationQueryItem(
     Municipality Municipality,
     Department Department,
     UserAccount InitialAdmin,
-    AccountToken? Invitation);
+    AccountToken? Invitation,
+    bool HasBranches);
 
 public interface IOrganizationRepository
 {

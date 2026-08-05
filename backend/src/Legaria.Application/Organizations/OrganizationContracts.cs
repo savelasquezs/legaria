@@ -64,7 +64,8 @@ public sealed record OrganizationResult(
     string Status,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    InitialAdministratorResult InitialAdmin);
+    InitialAdministratorResult InitialAdmin,
+    bool HasBranches);
 
 public sealed record OrganizationListItem(
     Guid Id,

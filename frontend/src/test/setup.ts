@@ -2,10 +2,6 @@ import { config } from '@vue/test-utils'
 
 const container = { template: '<div><slot /></div>' }
 
-config.global.directives = {
-  closePopup: {},
-}
-
 config.global.stubs = {
   QPage: container,
   QCard: container,
@@ -43,7 +39,9 @@ config.global.stubs = {
       '{{ label }}<slot /></button>',
   },
   QIcon: true,
+  QTooltip: container,
   QSpinner: true,
+  QSkeleton: container,
   QSeparator: true,
   QSpace: true,
   QChip: container,
@@ -55,6 +53,10 @@ config.global.stubs = {
   QTd: container,
   QPagination: true,
   QDialog: container,
+  QDrawer: container,
+  QList: container,
+  QItem: container,
+  QItemSection: container,
   QTable: {
     props: ['rows', 'noDataLabel'],
     template: '<div>{{ rows.length === 0 ? noDataLabel : "" }}</div>',

@@ -4,6 +4,13 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import TenantLayout from '../components/TenantLayout.vue'
 import BranchEmployeesSection from '../components/BranchEmployeesSection.vue'
+import AppAlert from '../components/AppAlert.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+import FormSection from '../components/FormSection.vue'
+import LoadingSkeleton from '../components/LoadingSkeleton.vue'
+import PageHeader from '../components/PageHeader.vue'
+import { icons } from '../design-system/icons'
+import { optionalEmailRule, optionalPhoneRule, requiredRule } from '../helpers/branchFormRules'
 import { getProblem } from '../services/api'
 import { changeBranchStatus, createBranch, getBranch, updateBranch } from '../services/branches'
 import { getDepartments, getMunicipalities } from '../services/organizations'
@@ -33,10 +40,6 @@ const form = reactive<BranchData>({
   address: '',
   municipalityCode: '',
 })
-
-const requiredRule = (value: string) => Boolean(value?.trim()) || 'Este campo es obligatorio.'
-const optionalEmailRule = (value: string | null) =>
-  !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || 'Ingresa un correo válido.'
 
 async function loadMunicipalities(clear = true): Promise<void> {
   if (clear) form.municipalityCode = ''
@@ -115,74 +118,59 @@ onMounted(load)
 <template>
   <TenantLayout>
     <main class="platform-content form-content">
-      <q-btn flat no-caps icon="arrow_back" label="Volver a sucursales" class="back-action" to="/app/branches" />
-      <header class="page-heading compact-heading">
-        <div>
-          <p class="eyebrow">Sucursales</p>
-          <h1>{{ editing ? branch?.name || 'Detalle de sucursal' : 'Nueva sucursal' }}</h1>
-          <p>{{ isSuperAdmin ? 'Mantén actualizados los datos operativos de la sede.' : 'Consulta los datos de tu sucursal asignada.' }}</p>
-        </div>
-        <q-btn
-          v-if="editing && isSuperAdmin && branch"
-          outline
-          no-caps
-          :color="branch.status === 'ACTIVE' ? 'negative' : 'positive'"
-          :icon="branch.status === 'ACTIVE' ? 'block' : 'check_circle'"
-          :label="branch.status === 'ACTIVE' ? 'Desactivar' : 'Reactivar'"
-          :loading="changingStatus"
-          @click="confirmStatus = true"
-        />
-      </header>
+      <PageHeader
+        context="Sucursales"
+        :title="editing ? branch?.name || 'Detalle de sucursal' : 'Nueva sucursal'"
+        :description="isSuperAdmin ? 'Mantén actualizados los datos operativos de la sede.' : 'Consulta los datos de tu sucursal asignada.'"
+        back-to="/app/branches"
+        back-label="Volver a sucursales"
+      >
+        <template v-if="editing && isSuperAdmin && branch" #actions>
+          <q-btn outline no-caps :color="branch.status === 'ACTIVE' ? 'negative' : 'positive'" :icon="branch.status === 'ACTIVE' ? icons.block : icons.check" :label="branch.status === 'ACTIVE' ? 'Desactivar' : 'Reactivar'" :loading="changingStatus" @click="confirmStatus = true" />
+        </template>
+      </PageHeader>
 
-      <div v-if="loading" class="loading-state"><q-spinner color="primary" size="42px" /></div>
-      <q-banner v-else-if="errorMessage && !branch && editing" class="bg-red-1 text-negative rounded-borders">
+      <LoadingSkeleton v-if="loading" variant="form" :rows="6" />
+      <AppAlert v-else-if="errorMessage && !branch && editing" tone="danger">
         {{ errorMessage }}
         <template #action><q-btn flat label="Reintentar" @click="load" /></template>
-      </q-banner>
+      </AppAlert>
       <q-form v-else @submit.prevent="save">
-        <q-banner v-if="errorMessage" class="bg-red-1 text-negative q-mb-md rounded-borders">{{ errorMessage }}</q-banner>
-        <q-card flat bordered class="platform-card form-card">
-          <q-card-section>
-            <div class="section-heading">
-              <q-icon name="storefront" />
-              <div><h2>Datos de la sucursal</h2><p>Nombre, ubicación y canales de contacto.</p></div>
-            </div>
-            <div class="fields-grid">
-              <q-input v-model="form.name" outlined label="Nombre" :disable="!isSuperAdmin" :rules="[requiredRule]" class="span-two" />
-              <q-input v-model="form.contactEmail" outlined type="email" label="Correo de contacto (opcional)" :disable="!isSuperAdmin" :rules="[optionalEmailRule]" />
-              <q-input v-model="form.phone" outlined label="Teléfono (opcional)" :disable="!isSuperAdmin" />
-              <q-input v-model="form.address" outlined label="Dirección" :disable="!isSuperAdmin" :rules="[requiredRule]" class="span-two" />
-              <q-select
-                v-model="departmentCode"
-                outlined
-                emit-value
-                map-options
-                option-value="code"
-                option-label="name"
-                :options="departments"
-                label="Departamento"
-                :disable="!isSuperAdmin"
-                :rules="[(value: string) => Boolean(value) || 'Selecciona un departamento.']"
-                @update:model-value="() => loadMunicipalities()"
-              />
-              <q-select
-                v-model="form.municipalityCode"
-                outlined
-                emit-value
-                map-options
-                option-value="code"
-                option-label="name"
-                :options="municipalities"
-                label="Municipio"
-                :disable="!isSuperAdmin || !departmentCode"
-                :rules="[(value: string) => Boolean(value) || 'Selecciona un municipio.']"
-              />
-            </div>
-          </q-card-section>
-          <q-card-actions v-if="isSuperAdmin" align="right" class="q-pa-md q-pt-none">
-            <q-btn unelevated no-caps color="primary" type="submit" :label="editing ? 'Guardar cambios' : 'Crear sucursal'" :loading="saving" />
-          </q-card-actions>
-        </q-card>
+        <AppAlert v-if="errorMessage" tone="danger">{{ errorMessage }}</AppAlert>
+        <FormSection title="Datos de la sucursal" description="Nombre, ubicación y canales de contacto." :icon="icons.storefront">
+          <div class="fields-grid">
+            <q-input v-model="form.name" outlined label="Nombre" :disable="!isSuperAdmin" :rules="[requiredRule]" class="span-two" />
+            <q-input v-model="form.contactEmail" outlined type="email" label="Correo de contacto (opcional)" :disable="!isSuperAdmin" :rules="[optionalEmailRule]" />
+            <q-input v-model="form.phone" outlined label="Teléfono (opcional)" :disable="!isSuperAdmin" :rules="[optionalPhoneRule]" />
+            <q-input v-model="form.address" outlined label="Dirección" :disable="!isSuperAdmin" :rules="[requiredRule]" class="span-two" />
+            <q-select
+              v-model="departmentCode"
+              outlined
+              emit-value
+              map-options
+              option-value="code"
+              option-label="name"
+              :options="departments"
+              label="Departamento"
+              :disable="!isSuperAdmin"
+              :rules="[(value: string) => Boolean(value) || 'Selecciona un departamento.']"
+              @update:model-value="() => loadMunicipalities()"
+            />
+            <q-select
+              v-model="form.municipalityCode"
+              outlined
+              emit-value
+              map-options
+              option-value="code"
+              option-label="name"
+              :options="municipalities"
+              label="Municipio"
+              :disable="!isSuperAdmin || !departmentCode"
+              :rules="[(value: string) => Boolean(value) || 'Selecciona un municipio.']"
+            />
+          </div>
+          <template v-if="isSuperAdmin" #actions><q-btn unelevated no-caps color="primary" type="submit" :label="editing ? 'Guardar cambios' : 'Crear sucursal'" :loading="saving" /></template>
+        </FormSection>
       </q-form>
 
       <BranchEmployeesSection
@@ -191,19 +179,17 @@ onMounted(load)
         :branch-active="branch.status === 'ACTIVE'"
       />
 
-      <q-dialog v-model="confirmStatus">
-        <q-card class="confirm-card">
-          <q-card-section>
-            <h2>{{ branch?.status === 'ACTIVE' ? 'Desactivar sucursal' : 'Reactivar sucursal' }}</h2>
-            <p v-if="branch?.status === 'ACTIVE'">La sucursal dejará de estar disponible para nuevas operaciones. Sus datos y accesos se conservarán.</p>
-            <p v-else>Los accesos conservados volverán a ser efectivos para esta sucursal.</p>
-          </q-card-section>
-          <q-card-actions align="right">
-            <q-btn flat no-caps label="Cancelar" v-close-popup />
-            <q-btn unelevated no-caps :color="branch?.status === 'ACTIVE' ? 'negative' : 'positive'" label="Confirmar" @click="toggleStatus" />
-          </q-card-actions>
-        </q-card>
-      </q-dialog>
+      <ConfirmDialog
+        v-model="confirmStatus"
+        :title="branch?.status === 'ACTIVE' ? 'Desactivar sucursal' : 'Reactivar sucursal'"
+        :message="branch?.status === 'ACTIVE'
+          ? 'La sucursal dejará de estar disponible para nuevas operaciones. Sus datos y accesos se conservarán.'
+          : 'Los accesos conservados volverán a ser efectivos para esta sucursal.'"
+        :tone="branch?.status === 'ACTIVE' ? 'danger' : 'acceptance'"
+        confirm-label="Confirmar"
+        :loading="changingStatus"
+        @confirm="toggleStatus"
+      />
     </main>
   </TenantLayout>
 </template>

@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { Notify } from 'quasar'
+import AppAlert from './AppAlert.vue'
+import AppDataTable from './AppDataTable.vue'
+import AppDialog from './AppDialog.vue'
+import ConfirmDialog from './ConfirmDialog.vue'
+import SearchField from './SearchField.vue'
+import StatusChip from './StatusChip.vue'
+import { icons } from '../design-system/icons'
 import { getProblem } from '../services/api'
 import {
   assignEmployee,
@@ -31,8 +38,11 @@ const saving = ref(false)
 const searching = ref(false)
 const creatingPosition = ref(false)
 const dialog = ref(false)
+const statusDialog = ref(false)
+const changingAccountStatus = ref(false)
 const mode = ref<'create' | 'existing' | 'access'>('create')
 const selectedEmployee = ref<Employee | null>(null)
+const statusEmployee = ref<Employee | null>(null)
 const search = ref('')
 const candidateSearch = ref('')
 const errorMessage = ref('')
@@ -188,17 +198,27 @@ async function resend(employee: Employee): Promise<void> {
   }
 }
 
-async function toggleAccountStatus(employee: Employee): Promise<void> {
+function requestAccountStatusChange(employee: Employee): void {
+  statusEmployee.value = employee
+  statusDialog.value = true
+}
+
+async function toggleAccountStatus(): Promise<void> {
+  const employee = statusEmployee.value
+  if (!employee || changingAccountStatus.value) return
   const access = employee.administrativeAccess
   if (!access) return
   const suspending = access.accountStatus === 'ACTIVE'
-  if (suspending && !globalThis.confirm('¿Suspender esta cuenta? Sus sesiones quedarán invalidadas inmediatamente.')) return
+  changingAccountStatus.value = true
   try {
     await changeBranchAdministratorStatus(access.accountId, suspending ? 'suspend' : 'reactivate')
     Notify.create({ type: 'positive', message: suspending ? 'Cuenta suspendida.' : 'Cuenta reactivada.' })
+    statusDialog.value = false
     await load()
   } catch (error) {
     errorMessage.value = getProblem(error)?.detail ?? 'No fue posible cambiar el estado de la cuenta.'
+  } finally {
+    changingAccountStatus.value = false
   }
 }
 
@@ -277,65 +297,68 @@ onMounted(load)
   <q-card flat bordered class="platform-card workers-card">
     <q-card-section>
       <div class="section-heading workers-heading">
-        <q-icon name="groups" />
+        <q-icon :name="icons.groups" />
         <div><h2>Trabajadores</h2><p>Personas asignadas a esta sucursal y su acceso administrativo.</p></div>
         <q-space />
-        <q-btn v-if="branchActive" outline no-caps color="primary" icon="person_search" label="Asignar existente" @click="openDialog('existing')" />
-        <q-btn v-if="branchActive" unelevated no-caps color="primary" icon="person_add" label="Nuevo trabajador" @click="openDialog('create')" />
+        <q-btn v-if="branchActive" outline no-caps color="primary" :icon="icons.personSearch" label="Asignar existente" @click="openDialog('existing')" />
+        <q-btn v-if="branchActive" unelevated no-caps color="primary" :icon="icons.personAdd" label="Nuevo trabajador" @click="openDialog('create')" />
       </div>
-      <q-banner v-if="errorMessage" class="bg-red-1 text-negative q-mb-md rounded-borders">{{ errorMessage }}</q-banner>
-      <q-input v-model="search" outlined dense clearable debounce="350" placeholder="Buscar por nombre o documento" class="workers-search" @update:model-value="load" />
-      <q-table flat :rows="result.items" :columns="columns" row-key="id" :loading="loading" hide-pagination :rows-per-page-options="[0]" no-data-label="Todavía no hay trabajadores asignados.">
+      <AppAlert v-if="errorMessage" tone="danger">{{ errorMessage }}</AppAlert>
+      <SearchField v-model="search" label="Buscar trabajadores" placeholder="Nombre o documento" :loading="loading" class="workers-search" @update:model-value="load" />
+      <AppDataTable :rows="result.items" :columns="columns" :loading="loading" :page="result.page" :total-pages="result.totalPages" empty-title="No hay trabajadores asignados" empty-description="Asigna un trabajador existente o crea uno nuevo." @update:page="result.page = $event; load()">
         <template #body-cell-employee="rowProps"><q-td :props="rowProps"><strong>{{ rowProps.row.firstName }} {{ rowProps.row.lastName }}</strong></q-td></template>
         <template #body-cell-document="rowProps"><q-td :props="rowProps">{{ rowProps.row.documentType }} {{ rowProps.row.documentNumber }}</q-td></template>
         <template #body-cell-position="rowProps"><q-td :props="rowProps">{{ assignmentForBranch(rowProps.row)?.jobPositionName }}</q-td></template>
-        <template #body-cell-access="rowProps"><q-td :props="rowProps"><div class="access-actions"><q-chip dense :color="rowProps.row.administrativeAccess ? 'blue-1' : 'grey-2'" :text-color="rowProps.row.administrativeAccess ? 'primary' : 'grey-8'">{{ invitationLabel(rowProps.row) }}</q-chip><q-btn flat round dense :icon="rowProps.row.administrativeAccess ? 'tune' : 'person_add'" :aria-label="rowProps.row.administrativeAccess ? 'Configurar sucursales' : 'Crear acceso administrativo'" @click="openAccess(rowProps.row)" /><q-btn v-if="rowProps.row.administrativeAccess && rowProps.row.administrativeAccess.invitationStatus !== 'ACCEPTED' && rowProps.row.administrativeAccess.accountStatus === 'ACTIVE'" flat round dense icon="forward_to_inbox" aria-label="Reenviar invitación" @click="resend(rowProps.row)" /><q-btn v-if="rowProps.row.administrativeAccess" flat round dense :icon="rowProps.row.administrativeAccess.accountStatus === 'ACTIVE' ? 'block' : 'check_circle'" :aria-label="rowProps.row.administrativeAccess.accountStatus === 'ACTIVE' ? 'Suspender cuenta' : 'Reactivar cuenta'" @click="toggleAccountStatus(rowProps.row)" /></div></q-td></template>
-      </q-table>
-      <div v-if="result.totalPages > 1" class="pagination-row"><q-pagination v-model="result.page" :max="result.totalPages" @update:model-value="load" /></div>
+        <template #body-cell-access="rowProps"><q-td :props="rowProps"><div class="access-actions"><StatusChip :tone="rowProps.row.administrativeAccess ? 'info' : 'neutral'" :label="invitationLabel(rowProps.row)" /><q-btn flat round dense :icon="rowProps.row.administrativeAccess ? icons.tune : icons.personAdd" :aria-label="rowProps.row.administrativeAccess ? 'Configurar sucursales' : 'Crear acceso administrativo'" @click="openAccess(rowProps.row)"><q-tooltip>{{ rowProps.row.administrativeAccess ? 'Configurar sucursales' : 'Crear acceso administrativo' }}</q-tooltip></q-btn><q-btn v-if="rowProps.row.administrativeAccess && rowProps.row.administrativeAccess.invitationStatus !== 'ACCEPTED' && rowProps.row.administrativeAccess.accountStatus === 'ACTIVE'" flat round dense :icon="icons.forwardToInbox" aria-label="Reenviar invitación" @click="resend(rowProps.row)"><q-tooltip>Reenviar invitación</q-tooltip></q-btn><q-btn v-if="rowProps.row.administrativeAccess" flat round dense :icon="rowProps.row.administrativeAccess.accountStatus === 'ACTIVE' ? icons.block : icons.check" :aria-label="rowProps.row.administrativeAccess.accountStatus === 'ACTIVE' ? 'Suspender cuenta' : 'Reactivar cuenta'" @click="requestAccountStatusChange(rowProps.row)"><q-tooltip>{{ rowProps.row.administrativeAccess.accountStatus === 'ACTIVE' ? 'Suspender cuenta' : 'Reactivar cuenta' }}</q-tooltip></q-btn></div></q-td></template>
+      </AppDataTable>
     </q-card-section>
   </q-card>
 
-  <q-dialog v-model="dialog" persistent>
-    <q-card class="employee-dialog">
-      <q-card-section class="dialog-heading">
-        <div><h2>{{ mode === 'create' ? 'Nuevo trabajador' : mode === 'existing' ? 'Asignar trabajador existente' : 'Acceso administrativo' }}</h2><p>{{ mode === 'access' ? 'Define las sucursales que puede administrar.' : 'La asignación quedará vinculada a esta sucursal.' }}</p></div>
-        <q-btn flat round dense icon="close" aria-label="Cerrar" v-close-popup />
-      </q-card-section>
-      <q-card-section>
-        <q-banner v-if="dialogError" class="bg-red-1 text-negative q-mb-md rounded-borders">{{ dialogError }}</q-banner>
-        <template v-if="mode === 'existing' && !selectedEmployee">
-          <q-input v-model="candidateSearch" outlined debounce="350" label="Buscar por nombre o documento" @update:model-value="loadCandidates" />
-          <div class="candidate-list">
-            <button v-for="employee in candidates.items" :key="employee.id" type="button" class="candidate-item" @click="selectEmployee(employee)">
-              <strong>{{ employee.firstName }} {{ employee.lastName }}</strong><span>{{ employee.documentType }} {{ employee.documentNumber }}</span>
-            </button>
-            <p v-if="!searching && candidates.items.length === 0" class="empty-copy">No hay trabajadores disponibles para asignar.</p>
-          </div>
-        </template>
-        <q-form v-else class="employee-form" @submit.prevent="save">
-          <div v-if="selectedEmployee" class="selected-employee"><strong>{{ selectedEmployee.firstName }} {{ selectedEmployee.lastName }}</strong><span>{{ selectedEmployee.documentType }} {{ selectedEmployee.documentNumber }}</span></div>
-          <div v-if="mode === 'create'" class="fields-grid">
-            <q-input v-model="form.documentType" outlined label="Tipo de documento" :rules="[requiredRule]" />
-            <q-input v-model="form.documentNumber" outlined label="Número de documento" :rules="[requiredRule]" />
-            <q-input v-model="form.firstName" outlined label="Nombres" :rules="[requiredRule]" />
-            <q-input v-model="form.lastName" outlined label="Apellidos" :rules="[requiredRule]" />
-          </div>
-          <div v-if="mode !== 'access'" class="fields-grid q-mt-md">
-            <q-select v-model="form.jobPositionId" outlined emit-value map-options option-value="id" option-label="name" :options="positions" label="Cargo" :rules="[requiredRule]" />
-            <q-input v-model="form.startedOn" outlined type="date" label="Fecha de inicio" :rules="[requiredRule]" />
-          </div>
-          <div v-if="mode !== 'access'" class="inline-position"><q-input v-model="newPositionName" outlined dense label="Crear otro cargo" /><q-btn outline no-caps color="primary" label="Agregar cargo" :loading="creatingPosition" @click="addPosition" /></div>
-          <q-checkbox v-if="mode !== 'access'" v-model="form.isPrimary" label="Asignación principal" />
-          <q-separator v-if="mode !== 'access'" class="q-my-md" />
-          <q-checkbox v-if="mode !== 'access'" v-model="form.grantAccess" label="Dar acceso como administrador de sucursal" />
-          <div v-if="form.grantAccess" class="access-fields">
-            <q-input v-model="form.email" outlined type="email" label="Correo de acceso" :disable="Boolean(selectedEmployee?.administrativeAccess)" :rules="[emailRule]" />
-            <q-select v-model="form.accessBranchIds" outlined multiple use-chips emit-value map-options option-value="id" option-label="name" :options="availableBranches" label="Sucursales administrables" />
-            <p v-if="mode !== 'access'">La invitación vence en 24 horas.</p>
-          </div>
-          <q-card-actions align="right" class="q-px-none q-pt-lg"><q-btn flat no-caps label="Cancelar" v-close-popup /><q-btn unelevated no-caps color="primary" type="submit" label="Guardar" :disable="!canSave" :loading="saving" /></q-card-actions>
-        </q-form>
-      </q-card-section>
-    </q-card>
-  </q-dialog>
+  <AppDialog v-model="dialog" :title="mode === 'create' ? 'Nuevo trabajador' : mode === 'existing' ? 'Asignar trabajador existente' : 'Acceso administrativo'" :description="mode === 'access' ? 'Define las sucursales que puede administrar.' : 'La asignación quedará vinculada a esta sucursal.'" :icon="icons.personAdd" size="lg" :persistent="saving">
+    <AppAlert v-if="dialogError" tone="danger">{{ dialogError }}</AppAlert>
+    <template v-if="mode === 'existing' && !selectedEmployee">
+      <q-input v-model="candidateSearch" outlined debounce="350" label="Buscar por nombre o documento" @update:model-value="loadCandidates" />
+      <div class="candidate-list">
+        <button v-for="employee in candidates.items" :key="employee.id" type="button" class="candidate-item" @click="selectEmployee(employee)">
+          <strong>{{ employee.firstName }} {{ employee.lastName }}</strong><span>{{ employee.documentType }} {{ employee.documentNumber }}</span>
+        </button>
+        <p v-if="!searching && candidates.items.length === 0" class="empty-copy">No hay trabajadores disponibles para asignar.</p>
+      </div>
+    </template>
+    <q-form v-else class="employee-form" @submit.prevent="save">
+      <div v-if="selectedEmployee" class="selected-employee"><strong>{{ selectedEmployee.firstName }} {{ selectedEmployee.lastName }}</strong><span>{{ selectedEmployee.documentType }} {{ selectedEmployee.documentNumber }}</span></div>
+      <div v-if="mode === 'create'" class="fields-grid">
+        <q-input v-model="form.documentType" outlined label="Tipo de documento" :rules="[requiredRule]" />
+        <q-input v-model="form.documentNumber" outlined label="Número de documento" :rules="[requiredRule]" />
+        <q-input v-model="form.firstName" outlined label="Nombres" :rules="[requiredRule]" />
+        <q-input v-model="form.lastName" outlined label="Apellidos" :rules="[requiredRule]" />
+      </div>
+      <div v-if="mode !== 'access'" class="fields-grid q-mt-md">
+        <q-select v-model="form.jobPositionId" outlined emit-value map-options option-value="id" option-label="name" :options="positions" label="Cargo" :rules="[requiredRule]" />
+        <q-input v-model="form.startedOn" outlined type="date" label="Fecha de inicio" :rules="[requiredRule]" />
+      </div>
+      <div v-if="mode !== 'access'" class="inline-position"><q-input v-model="newPositionName" outlined dense label="Crear otro cargo" /><q-btn outline no-caps color="primary" label="Agregar cargo" :loading="creatingPosition" @click="addPosition" /></div>
+      <q-checkbox v-if="mode !== 'access'" v-model="form.isPrimary" label="Asignación principal" />
+      <q-separator v-if="mode !== 'access'" class="q-my-md" />
+      <q-checkbox v-if="mode !== 'access'" v-model="form.grantAccess" label="Dar acceso como administrador de sucursal" />
+      <div v-if="form.grantAccess" class="access-fields">
+        <q-input v-model="form.email" outlined type="email" label="Correo de acceso" :disable="Boolean(selectedEmployee?.administrativeAccess)" :rules="[emailRule]" />
+        <q-select v-model="form.accessBranchIds" outlined multiple use-chips emit-value map-options option-value="id" option-label="name" :options="availableBranches" label="Sucursales administrables" />
+        <p v-if="mode !== 'access'">La invitación vence en 24 horas.</p>
+      </div>
+      <q-card-actions align="right" class="q-px-none q-pt-lg"><q-btn flat no-caps label="Cancelar" :disable="saving" @click="dialog = false" /><q-btn unelevated no-caps color="primary" type="submit" label="Guardar" :disable="!canSave" :loading="saving" /></q-card-actions>
+    </q-form>
+  </AppDialog>
+
+  <ConfirmDialog
+    v-model="statusDialog"
+    :title="statusEmployee?.administrativeAccess?.accountStatus === 'ACTIVE' ? 'Suspender cuenta' : 'Reactivar cuenta'"
+    :message="statusEmployee?.administrativeAccess?.accountStatus === 'ACTIVE'
+      ? 'Sus sesiones quedarán invalidadas inmediatamente y no podrá iniciar sesión.'
+      : 'La cuenta recuperará el acceso, pero sus sesiones anteriores no se restaurarán.'"
+    :tone="statusEmployee?.administrativeAccess?.accountStatus === 'ACTIVE' ? 'danger' : 'acceptance'"
+    confirm-label="Confirmar"
+    :loading="changingAccountStatus"
+    @confirm="toggleAccountStatus"
+  />
 </template>

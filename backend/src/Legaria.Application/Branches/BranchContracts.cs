@@ -76,6 +76,7 @@ public static class BranchErrorCodes
     public const string NotFound = "branch.not_found";
     public const string InvalidData = "branch.invalid_data";
     public const string DuplicateName = "branch.duplicate_name";
+    public const string InitialBranchAlreadyExists = "branch.initial_already_exists";
     public const string InvalidMunicipality = "branch.invalid_municipality";
     public const string InvalidStatusTransition = "branch.invalid_status_transition";
     public const string Forbidden = "branch.forbidden";

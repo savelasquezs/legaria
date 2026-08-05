@@ -1,35 +1,40 @@
-import '@quasar/extras/material-icons/material-icons.css'
-import 'quasar/dist/quasar.css'
-import './styles/app.css'
+import 'quasar/src/css/index.sass'
+import './styles/app.scss'
 import { createApp } from 'vue'
 import {
-  ClosePopup,
+  Dark,
   Notify,
-  QBanner,
   QBtn,
   QCard,
   QCardActions,
   QCardSection,
   QCheckbox,
   QDialog,
+  QDrawer,
   QChip,
   QForm,
   QHeader,
   QIcon,
   QInput,
   QLayout,
+  QList,
+  QItem,
+  QItemSection,
   QPage,
   QPageContainer,
   QPagination,
   QSelect,
   QSeparator,
+  QSkeleton,
   QSpace,
   QSpinner,
   QToolbar,
   QTable,
   QTd,
+  QTooltip,
   Quasar,
 } from 'quasar'
+import materialSymbolsRounded from 'quasar/icon-set/svg-material-symbols-rounded'
 import App from './App.vue'
 import { pinia } from './stores'
 import { router } from './router'
@@ -39,38 +44,43 @@ import { useAuthStore } from './stores/auth'
 const app = createApp(App)
 app.use(Quasar, {
   components: {
-    QBanner,
     QBtn,
     QCard,
     QCardActions,
     QCardSection,
     QCheckbox,
     QDialog,
+    QDrawer,
     QChip,
     QForm,
     QHeader,
     QIcon,
     QInput,
     QLayout,
+    QList,
+    QItem,
+    QItemSection,
     QPage,
     QPageContainer,
     QPagination,
     QSelect,
     QSeparator,
+    QSkeleton,
     QSpace,
     QSpinner,
     QToolbar,
     QTable,
     QTd,
+    QTooltip,
   },
-  directives: { ClosePopup },
-  plugins: { Notify },
+  plugins: { Dark, Notify },
+  iconSet: materialSymbolsRounded,
   config: {
-    brand: {
-      primary: '#345ff6',
-      secondary: '#13233f',
-      positive: '#158466',
-      negative: '#c43d4b',
+    dark: true,
+    notify: {
+      position: 'top-right',
+      timeout: 3200,
+      progress: true,
     },
   },
 })

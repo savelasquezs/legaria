@@ -187,7 +187,16 @@ public sealed class OrganizationRepository(LegariaDbContext dbContext) : IOrgani
                 item.RevokedAt == null)
             .OrderByDescending(item => item.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
-        return new OrganizationQueryItem(organization, municipality, municipality.Department, admin, invitation);
+        var hasBranches = await dbContext.Branches
+            .AsNoTracking()
+            .AnyAsync(item => item.OrganizationId == organization.Id, cancellationToken);
+        return new OrganizationQueryItem(
+            organization,
+            municipality,
+            municipality.Department,
+            admin,
+            invitation,
+            hasBranches);
     }
 
     private static string EscapeLike(string value) =>

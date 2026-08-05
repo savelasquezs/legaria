@@ -29,6 +29,9 @@ Este documento contiene las reglas aprobadas para el sistema de gestión de pers
 13. Una sucursal conserva dirección y municipio DIVIPOLA obligatorios; correo y teléfono de contacto son opcionales.
 14. Desactivar una sucursal conserva sus datos y accesos. Los accesos vuelven a ser efectivos si la sucursal se reactiva.
 15. Una sucursal inactiva no puede asignarse en una operación nueva.
+16. Después de crear una organización, `OWNER` o `PLATFORM_ADMIN` pueden crear su primera sucursal únicamente mientras la organización no tenga sucursales.
+17. Omitir o fallar la creación guiada de la primera sucursal no revierte la organización ni su superadministrador inicial.
+18. Las sucursales posteriores se crean desde el contexto tenant por un `SUPER_ADMIN`.
 
 ## Aprovisionamiento del primer superadministrador
 
