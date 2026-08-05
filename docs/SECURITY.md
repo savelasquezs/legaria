@@ -84,6 +84,10 @@ La implementación inicial consulta estado, `security_stamp`, roles y organizaci
 - Un rol nunca reemplaza validación de organización.
 - `OWNER` y `PLATFORM_ADMIN` administran datos de organizaciones; solo `OWNER` puede suspender o reactivar.
 - La organización activa se comprueba en login, refresh y cada JWT tenant autenticado.
+- `SUPER_ADMIN` administra sucursales y cuentas `BRANCH_ADMIN`; `BRANCH_ADMIN` solo puede leer sucursales con una concesión activa de su propia organización.
+- Los accesos de sucursal se consultan en base de datos para cada operación y nunca se incluyen en el JWT.
+- Suspender un `BRANCH_ADMIN` rota `security_stamp` y revoca refresh sessions e invitaciones pendientes. Reactivar no recupera sesiones anteriores.
+- Una sucursal inactiva puede consultarse como historial por quien conserve acceso, pero no puede participar en asignaciones nuevas.
 
 ## Multitenancy
 
@@ -117,7 +121,7 @@ No registrar:
 
 Registrar eventos de seguridad con IDs internos, fecha, IP normalizada y resultado, evitando información secreta.
 
-`SecurityAuditEvent` cubre bootstrap, verificación, cambio/restablecimiento de contraseña, cierre de sesiones y reutilización de refresh token. Nunca almacena correo, contraseña, token o clave externa.
+`SecurityAuditEvent` cubre bootstrap, verificación, cambio/restablecimiento de contraseña, cierre de sesiones, reutilización de refresh token y mutaciones de sucursales y administradores. Distingue actor tenant, cuenta afectada, organización y sucursal; nunca almacena correo, contraseña, token o clave externa.
 
 ## Rate limiting
 

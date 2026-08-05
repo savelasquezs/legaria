@@ -7,7 +7,7 @@ namespace Legaria.API.Controllers;
 
 [ApiController]
 [Route("api/catalogs")]
-[Authorize(Policy = AuthorizationPolicies.PlatformAdminOrOwner)]
+[Authorize(Policy = AuthorizationPolicies.AuthenticatedAccount)]
 public sealed class CatalogsController(IOrganizationService organizationService) : ControllerBase
 {
     [HttpGet("departments")]

@@ -237,10 +237,8 @@ public sealed class OrganizationProvisioningIntegrationTests(PostgreSqlFixture f
             null,
             null,
             [PlatformRoleCodes.Owner]);
-        var organizations = new OrganizationService(
-            organizationRepository,
-            new NitValidator(),
-            normalizer,
+        var invitations = new TenantInvitationService(
+            new TenantInvitationRepository(context),
             passwords,
             tokens,
             email,
@@ -248,6 +246,14 @@ public sealed class OrganizationProvisioningIntegrationTests(PostgreSqlFixture f
             clock,
             authenticationOptions,
             frontendOptions);
+        var organizations = new OrganizationService(
+            organizationRepository,
+            new NitValidator(),
+            normalizer,
+            passwords,
+            tokens,
+            clock,
+            invitations);
         var authentication = new AuthenticationService(
             authenticationRepository,
             passwords,
@@ -335,6 +341,11 @@ public sealed class OrganizationProvisioningIntegrationTests(PostgreSqlFixture f
     {
         public string RenderVerification(string firstName, string verificationUrl, TimeSpan expiration) => verificationUrl;
         public string RenderPasswordReset(string firstName, string resetUrl, TimeSpan expiration) => resetUrl;
-        public string RenderTenantInvitation(string firstName, string organizationName, string invitationUrl, TimeSpan expiration) => invitationUrl;
+        public string RenderTenantInvitation(
+            string firstName,
+            string organizationName,
+            string accessProfile,
+            string invitationUrl,
+            TimeSpan expiration) => invitationUrl;
     }
 }

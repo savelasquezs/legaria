@@ -26,6 +26,7 @@ public sealed class EmailTemplateRenderer(ResendOptions options) : IEmailTemplat
     public string RenderTenantInvitation(
         string firstName,
         string organizationName,
+        string accessProfile,
         string invitationUrl,
         TimeSpan expiration) =>
         Render(
@@ -33,7 +34,8 @@ public sealed class EmailTemplateRenderer(ResendOptions options) : IEmailTemplat
                 firstName,
                 invitationUrl,
                 $"{(int)expiration.TotalHours} horas")
-            .Replace("{{OrganizationName}}", WebUtility.HtmlEncode(organizationName), StringComparison.Ordinal);
+            .Replace("{{OrganizationName}}", WebUtility.HtmlEncode(organizationName), StringComparison.Ordinal)
+            .Replace("{{AccessProfile}}", WebUtility.HtmlEncode(accessProfile), StringComparison.Ordinal);
 
     private string Render(string resourceName, string firstName, string actionUrl, string expiration)
     {

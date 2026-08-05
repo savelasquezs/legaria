@@ -46,6 +46,30 @@ public sealed class AuthorizationPolicyTests
             AuthorizationPolicies.PlatformAdminOrOwner)).Succeeded);
     }
 
+    [Fact]
+    public async Task TenantPoliciesSeparateSuperAndBranchAdministratorsFromPlatformUsers()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddAuthorization(AuthorizationPolicies.Configure);
+        await using var provider = services.BuildServiceProvider();
+        var authorization = provider.GetRequiredService<IAuthorizationService>();
+        var superAdministrator = Principal(AccountTypeCodes.Tenant, SystemRoleCodes.SuperAdmin);
+        var branchAdministrator = Principal(AccountTypeCodes.Tenant, SystemRoleCodes.BranchAdmin);
+        var platformOwner = Principal(AccountTypeCodes.Platform, PlatformRoleCodes.Owner);
+
+        Assert.True((await authorization.AuthorizeAsync(
+            superAdministrator, null, AuthorizationPolicies.TenantAdministrator)).Succeeded);
+        Assert.True((await authorization.AuthorizeAsync(
+            branchAdministrator, null, AuthorizationPolicies.TenantAdministrator)).Succeeded);
+        Assert.True((await authorization.AuthorizeAsync(
+            superAdministrator, null, AuthorizationPolicies.TenantSuperAdministrator)).Succeeded);
+        Assert.False((await authorization.AuthorizeAsync(
+            branchAdministrator, null, AuthorizationPolicies.TenantSuperAdministrator)).Succeeded);
+        Assert.False((await authorization.AuthorizeAsync(
+            platformOwner, null, AuthorizationPolicies.TenantAdministrator)).Succeeded);
+    }
+
     private static ClaimsPrincipal Principal(string accountType, string role) =>
         new(new ClaimsIdentity(
             [

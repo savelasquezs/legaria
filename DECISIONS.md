@@ -112,6 +112,24 @@ Este archivo documenta decisiones duraderas. Agregar una entrada cuando cambie a
 
 **Consecuencia:** reactivar recupera acceso y sesiones todavía vigentes sin perder información.
 
+## 2026-08-04 — Acceso dinámico e histórico por sucursal
+
+**Decisión:** los accesos de `BRANCH_ADMIN` se almacenan en `UserBranchAccess` como concesiones con fecha y actor de otorgamiento/revocación. No se incluyen identificadores de sucursal en el JWT.
+
+**Consecuencia:** cada operación consulta PostgreSQL y una revocación tiene efecto inmediato. Volver a conceder acceso crea una fila nueva y conserva el historial anterior.
+
+## 2026-08-04 — Suspensión fuerte del administrador de sucursal
+
+**Decisión:** suspender una cuenta `BRANCH_ADMIN` rota `security_stamp` y revoca sesiones refresh e invitaciones pendientes, sin eliminar sus accesos por sucursal.
+
+**Consecuencia:** JWT, login y refresh quedan bloqueados inmediatamente. Reactivar exige iniciar sesión de nuevo; una cuenta todavía pendiente debe recibir una invitación nueva.
+
+## 2026-08-04 — Invitación tenant reutilizable
+
+**Decisión:** el ciclo de emisión, reemplazo, entrega, estado y aceptación de invitaciones tenant se centraliza para `SUPER_ADMIN` y `BRANCH_ADMIN`.
+
+**Consecuencia:** ambos flujos conservan 24 horas de vigencia, token SHA-256 de un solo uso, entrega posterior al commit y estado `REVOKED` cuando una suspensión deja la cuenta pendiente sin invitación utilizable.
+
 ## Pendientes deliberados
 
 Estas decisiones no están cerradas y no deben inventarse:

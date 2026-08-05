@@ -7,7 +7,7 @@ clon limpio, consultar
 Este entorno levanta exclusivamente los servicios de Legaria:
 
 - PostgreSQL 16 en `localhost:5434`, con volumen persistente.
-- Una tarea `migrate` que aplica hasta `OrganizationProvisioningAndDivipola` y termina.
+- Una tarea `migrate` que aplica hasta `BranchesAndBranchAdministrators` y termina.
 - La API .NET 8 en `https://localhost:7007`, ejecutada como usuario no root.
 
 El frontend continúa ejecutándose fuera de Docker.

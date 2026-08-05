@@ -89,6 +89,36 @@ internal sealed class MunicipalityConfiguration : IEntityTypeConfiguration<Munic
     }
 }
 
+internal sealed class BranchConfiguration : IEntityTypeConfiguration<Branch>
+{
+    public void Configure(EntityTypeBuilder<Branch> builder)
+    {
+        builder.ToTable("branches", table =>
+            table.HasCheckConstraint("ck_branches_status", "status IN ('ACTIVE', 'INACTIVE')"));
+        builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.OrganizationId, x.Id });
+        builder.Property(x => x.Name).HasMaxLength(150).IsRequired();
+        builder.Property(x => x.NormalizedName).HasMaxLength(150).IsRequired();
+        builder.Property(x => x.ContactEmail).HasMaxLength(320);
+        builder.Property(x => x.Phone).HasMaxLength(20);
+        builder.Property(x => x.Address).HasMaxLength(250).IsRequired();
+        builder.Property(x => x.MunicipalityCode).HasMaxLength(5).IsFixedLength().IsRequired();
+        builder.Property(x => x.Status).HasConversion(
+            value => value == BranchStatus.Active ? "ACTIVE" : "INACTIVE",
+            value => value == "ACTIVE" ? BranchStatus.Active : BranchStatus.Inactive);
+        builder.HasIndex(x => new { x.OrganizationId, x.NormalizedName }).IsUnique();
+        builder.HasIndex(x => new { x.OrganizationId, x.Status, x.Name });
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(x => x.OrganizationId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Municipality>()
+            .WithMany()
+            .HasForeignKey(x => x.MunicipalityCode)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 internal sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
 {
     public void Configure(EntityTypeBuilder<Employee> builder)
@@ -206,6 +236,39 @@ internal sealed class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
     }
 }
 
+internal sealed class UserBranchAccessConfiguration : IEntityTypeConfiguration<UserBranchAccess>
+{
+    public void Configure(EntityTypeBuilder<UserBranchAccess> builder)
+    {
+        builder.ToTable("user_branch_accesses");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.UserAccountId, x.BranchId })
+            .IsUnique()
+            .HasFilter("revoked_at IS NULL");
+        builder.HasIndex(x => new { x.OrganizationId, x.BranchId, x.RevokedAt });
+        builder.HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => new { x.OrganizationId, x.UserAccountId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Branch>()
+            .WithMany()
+            .HasForeignKey(x => new { x.OrganizationId, x.BranchId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => new { x.OrganizationId, x.GrantedByUserAccountId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => new { x.OrganizationId, x.RevokedByUserAccountId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 internal sealed class RefreshSessionConfiguration : IEntityTypeConfiguration<RefreshSession>
 {
     public void Configure(EntityTypeBuilder<RefreshSession> builder)
@@ -302,7 +365,9 @@ internal sealed class SecurityAuditEventConfiguration : IEntityTypeConfiguration
         builder.HasIndex(x => x.CreatedAt);
         builder.HasIndex(x => x.PlatformUserId);
         builder.HasIndex(x => x.UserAccountId);
+        builder.HasIndex(x => x.ActorUserAccountId);
         builder.HasIndex(x => x.OrganizationId);
+        builder.HasIndex(x => x.BranchId);
         builder.HasOne<PlatformUser>()
             .WithMany()
             .HasForeignKey(x => x.PlatformUserId)
@@ -311,9 +376,17 @@ internal sealed class SecurityAuditEventConfiguration : IEntityTypeConfiguration
             .WithMany()
             .HasForeignKey(x => x.UserAccountId)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => x.ActorUserAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Organization>()
             .WithMany()
             .HasForeignKey(x => x.OrganizationId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Branch>()
+            .WithMany()
+            .HasForeignKey(x => x.BranchId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

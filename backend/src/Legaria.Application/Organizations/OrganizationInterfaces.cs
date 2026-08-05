@@ -24,9 +24,7 @@ public interface IOrganizationRepository
     Task<UserAccount?> FindInitialAdminAsync(Guid organizationId, CancellationToken cancellationToken);
     Task<UserAccount?> FindUserAccountAsync(Guid id, CancellationToken cancellationToken);
     Task<AccountEmail?> FindAccountEmailForUserAsync(Guid userAccountId, CancellationToken cancellationToken);
-    Task<AccountToken?> FindInvitationAsync(string tokenHash, CancellationToken cancellationToken);
     Task<AccountToken?> FindLatestInvitationAsync(Guid userAccountId, CancellationToken cancellationToken);
-    Task<IReadOnlyCollection<AccountToken>> FindActiveInvitationsAsync(Guid userAccountId, CancellationToken cancellationToken);
     Task<Municipality?> FindMunicipalityAsync(string code, CancellationToken cancellationToken);
     Task<bool> NitExistsAsync(string nit, Guid? excludingOrganizationId, CancellationToken cancellationToken);
     Task<bool> EmailExistsAsync(string normalizedEmail, Guid? excludingUserAccountId, CancellationToken cancellationToken);
@@ -36,7 +34,6 @@ public interface IOrganizationRepository
     void AddUserAccount(UserAccount account);
     void AddAccountEmail(AccountEmail accountEmail);
     void RemoveAccountEmail(AccountEmail accountEmail);
-    void AddToken(AccountToken token);
     void AddAuditEvent(SecurityAuditEvent auditEvent);
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

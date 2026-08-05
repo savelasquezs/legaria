@@ -88,6 +88,7 @@ function invitationLabel(value: InvitationStatus): string {
     DELIVERY_FAILED: 'Falló el envío',
     EXPIRED: 'Invitación expirada',
     ACCEPTED: 'Cuenta activada',
+    REVOKED: 'Invitación revocada',
   }[value]
 }
 

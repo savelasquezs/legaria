@@ -1,6 +1,5 @@
 using System.Net.Mail;
 using Legaria.Application.Authentication;
-using Legaria.Application.Configuration;
 using Legaria.Domain.Authentication;
 using Legaria.Domain.Tenancy;
 
@@ -12,14 +11,9 @@ public sealed class OrganizationService(
     IEmailNormalizer emailNormalizer,
     IPasswordService passwordService,
     ISecureTokenService secureTokenService,
-    IEmailSender emailSender,
-    IEmailTemplateRenderer templateRenderer,
     IClock clock,
-    AuthenticationOptions authenticationOptions,
-    FrontendOptions frontendOptions) : IOrganizationService
+    ITenantInvitationService tenantInvitations) : IOrganizationService
 {
-    private TimeSpan InvitationLifetime => TimeSpan.FromHours(authenticationOptions.VerificationTokenHours);
-
     public async Task<OrganizationPage> ListAsync(
         int page,
         int pageSize,
@@ -101,12 +95,15 @@ public sealed class OrganizationService(
             now,
             true);
         account.AddRole(SystemRole.SuperAdminId);
-        var (invitation, rawToken) = CreateInvitation(account.Id, now, client);
+        var invitation = await tenantInvitations.IssueAsync(
+            account.Id,
+            client,
+            false,
+            cancellationToken);
 
         repository.AddOrganization(organization);
         repository.AddUserAccount(account);
         repository.AddAccountEmail(AccountEmail.ForTenant(admin.NormalizedEmail, account.Id, now));
-        repository.AddToken(invitation);
         repository.AddAuditEvent(CreateAudit(
             "ORGANIZATION_CREATED",
             actor,
@@ -116,7 +113,14 @@ public sealed class OrganizationService(
             now));
         await repository.SaveChangesAsync(cancellationToken);
 
-        await DeliverInvitationAsync(organization, account, invitation, rawToken, actor, client, cancellationToken);
+        await tenantInvitations.DeliverAsync(
+            organization,
+            account,
+            invitation,
+            "superadministrador inicial",
+            actor,
+            client,
+            cancellationToken);
         return await GetAsync(organization.Id, cancellationToken);
     }
 
@@ -208,11 +212,22 @@ public sealed class OrganizationService(
             admin.LastName,
             secureTokenService.GenerateSecurityStamp(),
             now);
-        var (invitation, rawToken) = await ReplaceInvitationAsync(account, client, now, cancellationToken);
+        var invitation = await tenantInvitations.IssueAsync(
+            account.Id,
+            client,
+            true,
+            cancellationToken);
         repository.AddAuditEvent(CreateAudit("INITIAL_ADMIN_UPDATED", actor, id, account.Id, client, now));
         await repository.SaveChangesAsync(cancellationToken);
 
-        await DeliverInvitationAsync(organization, account, invitation, rawToken, actor, client, cancellationToken);
+        await tenantInvitations.DeliverAsync(
+            organization,
+            account,
+            invitation,
+            "superadministrador inicial",
+            actor,
+            client,
+            cancellationToken);
         return await GetAsync(id, cancellationToken);
     }
 
@@ -229,89 +244,30 @@ public sealed class OrganizationService(
             ?? throw NotFound();
         EnsureInvitationPending(account);
         var now = clock.UtcNow;
-        var (invitation, rawToken) = await ReplaceInvitationAsync(account, client, now, cancellationToken);
+        var invitation = await tenantInvitations.IssueAsync(
+            account.Id,
+            client,
+            true,
+            cancellationToken);
         repository.AddAuditEvent(CreateAudit("TENANT_INVITATION_REISSUED", actor, id, account.Id, client, now));
         await repository.SaveChangesAsync(cancellationToken);
 
-        await DeliverInvitationAsync(organization, account, invitation, rawToken, actor, client, cancellationToken);
+        await tenantInvitations.DeliverAsync(
+            organization,
+            account,
+            invitation,
+            "superadministrador inicial",
+            actor,
+            client,
+            cancellationToken);
         return await GetAsync(id, cancellationToken);
     }
 
-    public async Task AcceptInvitationAsync(
+    public Task AcceptInvitationAsync(
         AcceptInvitationRequest request,
         ClientContext client,
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(request.Token))
-        {
-            throw InvalidInvitation();
-        }
-
-        if (request.NewPassword is null || request.NewPassword.Length is < 8 or > 128)
-        {
-            throw new OrganizationException(
-                AuthErrorCodes.InvalidPassword,
-                "La contraseña debe tener entre 8 y 128 caracteres.");
-        }
-
-        var now = clock.UtcNow;
-        var invitation = await repository.FindInvitationAsync(
-            secureTokenService.HashToken(request.Token),
-            cancellationToken) ?? throw InvalidInvitation();
-        if (invitation.UsedAt is not null || invitation.RevokedAt is not null)
-        {
-            throw new OrganizationException(
-                OrganizationErrorCodes.UsedInvitation,
-                "La invitación ya fue utilizada o reemplazada.",
-                OrganizationErrorKind.Conflict);
-        }
-
-        if (invitation.ExpiresAt <= now)
-        {
-            throw new OrganizationException(
-                OrganizationErrorCodes.ExpiredInvitation,
-                "La invitación expiró.",
-                OrganizationErrorKind.Conflict);
-        }
-
-        var account = invitation.UserAccountId is { } userId
-            ? await repository.FindUserAccountAsync(userId, cancellationToken)
-            : null;
-        if (account is null || account.EmailVerifiedAt is not null)
-        {
-            throw new OrganizationException(
-                OrganizationErrorCodes.UsedInvitation,
-                "La invitación ya fue utilizada.",
-                OrganizationErrorKind.Conflict);
-        }
-
-        var organization = await repository.FindOrganizationAsync(account.OrganizationId, cancellationToken)
-            ?? throw InvalidInvitation();
-        if (organization.Status != OrganizationStatus.Active)
-        {
-            throw new OrganizationException(
-                OrganizationErrorCodes.SuspendedOrganization,
-                "La organización está suspendida.",
-                OrganizationErrorKind.Forbidden);
-        }
-
-        account.ChangePassword(
-            passwordService.Hash(request.NewPassword),
-            secureTokenService.GenerateSecurityStamp(),
-            now);
-        account.VerifyEmail(now);
-        invitation.MarkUsed(now);
-        repository.AddAuditEvent(SecurityAuditEvent.Create(
-            "TENANT_INVITATION_ACCEPTED",
-            "SUCCESS",
-            now,
-            AccountType.Tenant,
-            userAccountId: account.Id,
-            ipAddress: client.IpAddress,
-            userAgent: client.UserAgent,
-            organizationId: organization.Id));
-        await repository.SaveChangesAsync(cancellationToken);
-    }
+        CancellationToken cancellationToken) =>
+        tenantInvitations.AcceptAsync(request, client, cancellationToken);
 
     public async Task<IReadOnlyCollection<DepartmentResult>> GetDepartmentsAsync(CancellationToken cancellationToken) =>
         (await repository.GetDepartmentsAsync(cancellationToken))
@@ -441,89 +397,6 @@ public sealed class OrganizationService(
         return phone;
     }
 
-    private async Task<(AccountToken Invitation, string RawToken)> ReplaceInvitationAsync(
-        UserAccount account,
-        ClientContext client,
-        DateTimeOffset now,
-        CancellationToken cancellationToken)
-    {
-        foreach (var current in await repository.FindActiveInvitationsAsync(account.Id, cancellationToken))
-        {
-            current.Revoke(now);
-        }
-
-        var created = CreateInvitation(account.Id, now, client);
-        repository.AddToken(created.Invitation);
-        return created;
-    }
-
-    private (AccountToken Invitation, string RawToken) CreateInvitation(
-        Guid accountId,
-        DateTimeOffset now,
-        ClientContext client)
-    {
-        var rawToken = secureTokenService.GenerateToken();
-        return (
-            AccountToken.Create(
-                AccountType.Tenant,
-                null,
-                accountId,
-                AccountTokenPurpose.TenantInvitation,
-                secureTokenService.HashToken(rawToken),
-                now.Add(InvitationLifetime),
-                now,
-                client.IpAddress),
-            rawToken);
-    }
-
-    private async Task DeliverInvitationAsync(
-        Organization organization,
-        UserAccount account,
-        AccountToken invitation,
-        string rawToken,
-        CurrentAccount actor,
-        ClientContext client,
-        CancellationToken cancellationToken)
-    {
-        var url = $"{frontendOptions.BaseUrl.TrimEnd('/')}/accept-invitation?token={Uri.EscapeDataString(rawToken)}";
-        var now = clock.UtcNow;
-        try
-        {
-            await emailSender.SendAsync(
-                new EmailMessage(
-                    account.Email,
-                    $"Activa tu cuenta de {organization.TradeName} en Legaria",
-                    templateRenderer.RenderTenantInvitation(
-                        account.FirstName,
-                        organization.TradeName,
-                        url,
-                        InvitationLifetime)),
-                cancellationToken);
-            invitation.MarkDelivered(now);
-            repository.AddAuditEvent(CreateAudit(
-                "TENANT_INVITATION_DELIVERED",
-                actor,
-                organization.Id,
-                account.Id,
-                client,
-                now));
-        }
-        catch (EmailDeliveryException)
-        {
-            invitation.MarkDeliveryFailed(now);
-            repository.AddAuditEvent(CreateAudit(
-                "TENANT_INVITATION_DELIVERY_FAILED",
-                actor,
-                organization.Id,
-                account.Id,
-                client,
-                now,
-                "FAILED"));
-        }
-
-        await repository.SaveChangesAsync(cancellationToken);
-    }
-
     private async Task<OrganizationQueryItem> GetDetailsAsync(Guid id, CancellationToken cancellationToken) =>
         await repository.FindDetailsAsync(id, cancellationToken) ?? throw NotFound();
 
@@ -548,7 +421,7 @@ public sealed class OrganizationService(
             item.InitialAdmin.FirstName,
             item.InitialAdmin.LastName,
             item.InitialAdmin.Email,
-            GetInvitationStatus(item.InitialAdmin, item.Invitation, now),
+            tenantInvitations.GetPublicStatus(item.InitialAdmin, item.Invitation, now),
             item.InitialAdmin.EmailVerifiedAt is null ? item.Invitation?.ExpiresAt : null));
 
     private OrganizationListItem ToListItem(OrganizationQueryItem item) => new(
@@ -560,33 +433,8 @@ public sealed class OrganizationService(
         item.Municipality.Name,
         item.Department.Name,
         ToStatus(item.Organization.Status),
-        GetInvitationStatus(item.InitialAdmin, item.Invitation, clock.UtcNow),
+        tenantInvitations.GetPublicStatus(item.InitialAdmin, item.Invitation, clock.UtcNow),
         item.Organization.CreatedAt);
-
-    private static string GetInvitationStatus(UserAccount account, AccountToken? token, DateTimeOffset now)
-    {
-        if (account.EmailVerifiedAt is not null || token?.UsedAt is not null)
-        {
-            return InvitationStatuses.Accepted;
-        }
-
-        if (token is null)
-        {
-            return InvitationStatuses.PendingDelivery;
-        }
-
-        if (token.ExpiresAt <= now)
-        {
-            return InvitationStatuses.Expired;
-        }
-
-        if (token.DeliveryFailedAt is not null)
-        {
-            return InvitationStatuses.DeliveryFailed;
-        }
-
-        return token.DeliveredAt is not null ? InvitationStatuses.Sent : InvitationStatuses.PendingDelivery;
-    }
 
     private static void EnsureInvitationPending(UserAccount account)
     {
@@ -670,10 +518,6 @@ public sealed class OrganizationService(
         OrganizationErrorCodes.DuplicateAccountEmail,
         "El correo ya pertenece a otra cuenta.",
         OrganizationErrorKind.Conflict);
-
-    private static OrganizationException InvalidInvitation() => new(
-        OrganizationErrorCodes.InvalidInvitation,
-        "La invitación no es válida.");
 
     private static SecurityAuditEvent CreateAudit(
         string eventType,

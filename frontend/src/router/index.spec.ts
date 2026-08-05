@@ -24,6 +24,13 @@ const tenantAccount: AuthenticatedAccount = {
   organizationId: '077c60cd-1c0b-496b-83df-d1cfa89e397c',
 }
 
+const branchAdministratorAccount: AuthenticatedAccount = {
+  ...tenantAccount,
+  id: '619608b5-55b5-42eb-8ebc-9287002a9f2a',
+  email: 'branch@tenant.test',
+  roles: ['BRANCH_ADMIN'],
+}
+
 describe('authentication route guards', () => {
   beforeEach(async () => {
     const auth = useAuthStore(pinia)
@@ -43,11 +50,25 @@ describe('authentication route guards', () => {
     const auth = useAuthStore(pinia)
     auth.account = tenantAccount
     await router.push('/platform')
-    expect(router.currentRoute.value.path).toBe('/app')
+    expect(router.currentRoute.value.path).toBe('/app/branches')
 
     auth.account = platformAccount
     await router.push('/forgot-password')
     expect(router.currentRoute.value.path).toBe('/platform')
+  })
+
+  it('keeps a branch administrator out of tenant administration routes', async () => {
+    const auth = useAuthStore(pinia)
+    auth.account = branchAdministratorAccount
+
+    await router.push('/app/administrators')
+    expect(router.currentRoute.value.path).toBe('/app/branches')
+
+    await router.push('/app/branches/new')
+    expect(router.currentRoute.value.path).toBe('/app/branches')
+
+    await router.push('/app/branches/4cef9d70-11a5-4be3-a5bf-8f96ecbe1715')
+    expect(router.currentRoute.value.name).toBe('tenant-branch-detail')
   })
 
   it('keeps invitation acceptance public and protects organization details', async () => {

@@ -9,7 +9,7 @@ Tenant propietario de sucursales, usuarios, trabajadores y expedientes. Conserva
 Catálogo oficial DIVIPOLA MGN 2025 congelado. `Municipality` pertenece a `Department`; la organización referencia únicamente el municipio de cinco dígitos.
 
 ### Branch
-Sucursal de una organización. Puede desactivarse, no eliminarse si tiene historial.
+Sucursal de una organización. Conserva nombre normalizado, contacto opcional, dirección, municipio DIVIPOLA, estado y fechas. Tiene nombre único por organización y puede desactivarse sin eliminar datos ni accesos.
 
 ### Employee
 Persona trabajadora. No representa contrato, cargo ni cuenta de acceso.
@@ -76,7 +76,7 @@ Registro central de correos de cuenta. `normalized_email` es la clave primaria y
 Roles iniciales SUPER_ADMIN y BRANCH_ADMIN. Mantener separación del cargo.
 
 ### UserBranchAccess
-Sucursales autorizadas para administradores de sucursal.
+Historial de sucursales autorizadas para administradores. Cada fila conserva organización, cuenta, sucursal, fecha y actor de concesión, y fecha y actor de revocación opcionales. Un índice parcial permite solo una concesión activa por pareja cuenta/sucursal y claves foráneas compuestas impiden referencias cruzadas de tenant.
 
 ### RefreshSession
 Hash del token, familia, expiración, revocación, reemplazo, IP y user agent.
@@ -104,6 +104,8 @@ Evento persistente para operaciones sensibles. No contiene correo, token ni secr
 `InitialIdentityAndAuthentication` crea la fundación de identidad. Las migraciones se aplican de forma explícita antes de iniciar la API; el startup no modifica el esquema.
 
 `OrganizationProvisioningAndDivipola` agrega datos empresariales, reserva global de correos, invitaciones, organización en auditoría y el catálogo de 33 departamentos/1.122 municipios. La fuente y checksum están en `backend/src/Legaria.Infrastructure/Persistence/Data/README.md`.
+
+`BranchesAndBranchAdministrators` agrega sucursales, historial `user_branch_accesses`, actor tenant y sucursal afectada en auditoría. No modifica ni inventa datos de las organizaciones y cuentas existentes.
 
 ## Eliminación
 

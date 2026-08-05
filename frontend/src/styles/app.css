@@ -182,6 +182,41 @@ body {
   background: #f4f6fb;
 }
 
+.tenant-layout {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 85% 0%, rgba(52, 95, 246, 0.08), transparent 26rem),
+    #f4f6fb;
+}
+
+.tenant-header {
+  background: #13233f;
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.tenant-toolbar {
+  min-height: 72px;
+  padding-inline: clamp(18px, 4vw, 48px);
+}
+
+.tenant-nav {
+  display: flex;
+  gap: 4px;
+  margin-left: clamp(24px, 5vw, 64px);
+}
+
+.tenant-nav .q-btn {
+  min-height: 42px;
+  border-radius: 10px;
+  color: #b9c4d8;
+}
+
+.tenant-nav .q-btn.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
 .platform-header {
   background: #13233f;
   color: #fff;
@@ -389,6 +424,34 @@ body {
   place-items: center;
 }
 
+.confirm-card {
+  width: min(100% - 32px, 480px);
+  border-radius: 16px;
+}
+
+.confirm-card h2 {
+  margin: 0 0 10px;
+  color: #17233a;
+  font-size: 21px;
+}
+
+.confirm-card p {
+  margin: 0;
+  color: #667288;
+  line-height: 1.6;
+}
+
+.branch-summary {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invitation-banner .q-banner__actions {
+  align-self: center;
+}
+
 @media (max-width: 760px) {
   .platform-page {
     padding-top: 24px;
@@ -415,6 +478,21 @@ body {
 
   .organizations-table {
     overflow-x: auto;
+  }
+
+  .tenant-toolbar {
+    flex-wrap: wrap;
+    padding-block: 8px;
+  }
+
+  .tenant-nav {
+    order: 3;
+    width: 100%;
+    margin: 4px 0 0;
+  }
+
+  .tenant-nav .q-btn {
+    flex: 1;
   }
 }
 

@@ -73,11 +73,6 @@ public sealed class OrganizationRepository(LegariaDbContext dbContext) : IOrgani
             item => item.UserAccountId == userAccountId,
             cancellationToken);
 
-    public Task<AccountToken?> FindInvitationAsync(string tokenHash, CancellationToken cancellationToken) =>
-        dbContext.AccountTokens.SingleOrDefaultAsync(
-            item => item.TokenHash == tokenHash && item.Purpose == AccountTokenPurpose.TenantInvitation,
-            cancellationToken);
-
     public Task<AccountToken?> FindLatestInvitationAsync(Guid userAccountId, CancellationToken cancellationToken) =>
         dbContext.AccountTokens
             .Where(item =>
@@ -86,17 +81,6 @@ public sealed class OrganizationRepository(LegariaDbContext dbContext) : IOrgani
                 item.RevokedAt == null)
             .OrderByDescending(item => item.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
-
-    public async Task<IReadOnlyCollection<AccountToken>> FindActiveInvitationsAsync(
-        Guid userAccountId,
-        CancellationToken cancellationToken) =>
-        await dbContext.AccountTokens
-            .Where(item =>
-                item.UserAccountId == userAccountId &&
-                item.Purpose == AccountTokenPurpose.TenantInvitation &&
-                item.UsedAt == null &&
-                item.RevokedAt == null)
-            .ToArrayAsync(cancellationToken);
 
     public Task<Municipality?> FindMunicipalityAsync(string code, CancellationToken cancellationToken) =>
         dbContext.Municipalities.AsNoTracking().SingleOrDefaultAsync(item => item.Code == code, cancellationToken);
@@ -138,7 +122,6 @@ public sealed class OrganizationRepository(LegariaDbContext dbContext) : IOrgani
     public void AddUserAccount(UserAccount account) => dbContext.UserAccounts.Add(account);
     public void AddAccountEmail(AccountEmail accountEmail) => dbContext.AccountEmails.Add(accountEmail);
     public void RemoveAccountEmail(AccountEmail accountEmail) => dbContext.AccountEmails.Remove(accountEmail);
-    public void AddToken(AccountToken token) => dbContext.AccountTokens.Add(token);
     public void AddAuditEvent(SecurityAuditEvent auditEvent) => dbContext.SecurityAuditEvents.Add(auditEvent);
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken)

@@ -30,7 +30,7 @@ services:
     command:
       - database
       - update
-      - OrganizationProvisioningAndDivipola
+      - BranchesAndBranchAdministrators
       - --project
       - backend/src/Legaria.Infrastructure/Legaria.Infrastructure.csproj
       - --startup-project

@@ -110,6 +110,36 @@ public sealed class UserAccount
         UpdatedAt = now;
     }
 
+    public bool Suspend(string securityStamp, DateTimeOffset now)
+    {
+        if (Status == AccountStatus.Suspended)
+        {
+            return false;
+        }
+
+        Status = AccountStatus.Suspended;
+        SecurityStamp = securityStamp;
+        AccessFailedCount = 0;
+        LockoutEndAt = null;
+        UpdatedAt = now;
+        return true;
+    }
+
+    public bool Reactivate(string securityStamp, DateTimeOffset now)
+    {
+        if (Status == AccountStatus.Active)
+        {
+            return false;
+        }
+
+        Status = AccountStatus.Active;
+        SecurityStamp = securityStamp;
+        AccessFailedCount = 0;
+        LockoutEndAt = null;
+        UpdatedAt = now;
+        return true;
+    }
+
     public void UpdatePendingIdentity(
         string email,
         string normalizedEmail,

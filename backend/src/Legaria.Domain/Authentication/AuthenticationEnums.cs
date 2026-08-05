@@ -24,6 +24,12 @@ public enum OrganizationStatus
     Suspended
 }
 
+public enum BranchStatus
+{
+    Active,
+    Inactive
+}
+
 public enum AccountTokenPurpose
 {
     EmailVerification,

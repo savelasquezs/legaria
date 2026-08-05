@@ -7,6 +7,9 @@ public static class AuthorizationPolicies
 {
     public const string PlatformOwnerOnly = nameof(PlatformOwnerOnly);
     public const string PlatformAdminOrOwner = nameof(PlatformAdminOrOwner);
+    public const string AuthenticatedAccount = nameof(AuthenticatedAccount);
+    public const string TenantAdministrator = nameof(TenantAdministrator);
+    public const string TenantSuperAdministrator = nameof(TenantSuperAdministrator);
 
     public static void Configure(AuthorizationOptions options)
     {
@@ -22,5 +25,20 @@ public static class AuthorizationPolicies
                 .RequireAuthenticatedUser()
                 .RequireClaim("account_type", AccountTypeCodes.Platform)
                 .RequireRole(PlatformRoleCodes.Owner, PlatformRoleCodes.PlatformAdmin));
+        options.AddPolicy(
+            AuthenticatedAccount,
+            policy => policy.RequireAuthenticatedUser());
+        options.AddPolicy(
+            TenantAdministrator,
+            policy => policy
+                .RequireAuthenticatedUser()
+                .RequireClaim("account_type", AccountTypeCodes.Tenant)
+                .RequireRole(SystemRoleCodes.SuperAdmin, SystemRoleCodes.BranchAdmin));
+        options.AddPolicy(
+            TenantSuperAdministrator,
+            policy => policy
+                .RequireAuthenticatedUser()
+                .RequireClaim("account_type", AccountTypeCodes.Tenant)
+                .RequireRole(SystemRoleCodes.SuperAdmin));
     }
 }

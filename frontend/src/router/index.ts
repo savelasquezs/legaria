@@ -6,16 +6,20 @@ import LoginPage from '../pages/LoginPage.vue'
 import ForgotPasswordPage from '../pages/ForgotPasswordPage.vue'
 import ResetPasswordPage from '../pages/ResetPasswordPage.vue'
 import VerifyEmailPage from '../pages/VerifyEmailPage.vue'
-import SessionPage from '../pages/SessionPage.vue'
 import AcceptInvitationPage from '../pages/AcceptInvitationPage.vue'
 import PlatformOrganizationsPage from '../pages/PlatformOrganizationsPage.vue'
 import OrganizationFormPage from '../pages/OrganizationFormPage.vue'
+import TenantBranchesPage from '../pages/TenantBranchesPage.vue'
+import TenantBranchFormPage from '../pages/TenantBranchFormPage.vue'
+import TenantAdministratorsPage from '../pages/TenantAdministratorsPage.vue'
+import TenantAdministratorFormPage from '../pages/TenantAdministratorFormPage.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
     public?: boolean
     guestOnly?: boolean
     accountType?: AccountType
+    roles?: string[]
   }
 }
 
@@ -72,10 +76,44 @@ export const router = createRouter({
     },
     {
       path: '/app',
-      name: 'tenant-app',
-      component: SessionPage,
-      props: { platform: false },
+      redirect: '/app/branches',
       meta: { accountType: 'TENANT' },
+    },
+    {
+      path: '/app/branches',
+      name: 'tenant-branches',
+      component: TenantBranchesPage,
+      meta: { accountType: 'TENANT' },
+    },
+    {
+      path: '/app/branches/new',
+      name: 'tenant-branch-create',
+      component: TenantBranchFormPage,
+      meta: { accountType: 'TENANT', roles: ['SUPER_ADMIN'] },
+    },
+    {
+      path: '/app/branches/:id',
+      name: 'tenant-branch-detail',
+      component: TenantBranchFormPage,
+      meta: { accountType: 'TENANT' },
+    },
+    {
+      path: '/app/administrators',
+      name: 'tenant-administrators',
+      component: TenantAdministratorsPage,
+      meta: { accountType: 'TENANT', roles: ['SUPER_ADMIN'] },
+    },
+    {
+      path: '/app/administrators/new',
+      name: 'tenant-administrator-create',
+      component: TenantAdministratorFormPage,
+      meta: { accountType: 'TENANT', roles: ['SUPER_ADMIN'] },
+    },
+    {
+      path: '/app/administrators/:id',
+      name: 'tenant-administrator-detail',
+      component: TenantAdministratorFormPage,
+      meta: { accountType: 'TENANT', roles: ['SUPER_ADMIN'] },
     },
     {
       path: '/:pathMatch(.*)*',
@@ -94,6 +132,9 @@ router.beforeEach(async (to) => {
     }
     if (auth.account.accountType !== to.meta.accountType) {
       return auth.account.accountType === 'PLATFORM' ? '/platform' : '/app'
+    }
+    if (to.meta.roles?.length && !to.meta.roles.some((role) => auth.account?.roles.includes(role))) {
+      return auth.account.accountType === 'TENANT' ? '/app/branches' : '/platform'
     }
   }
 

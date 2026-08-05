@@ -76,6 +76,8 @@ La API valida el estado, `security_stamp`, roles y, para tenant, la organizació
 
 La infraestructura externa de correo se limita a `IEmailSender`, implementado con Resend. La construcción de plantillas y tokens permanece separada del proveedor.
 
+`TenantInvitationService` centraliza invitaciones de cuentas tenant. El aprovisionamiento de organizaciones y el módulo de administradores de sucursal comparten emisión, rotación, entrega, aceptación y estados públicos sin duplicar reglas criptográficas.
+
 ## Multitenancy
 
 Se usa una base compartida con filas separadas por `organization_id`.
@@ -87,6 +89,7 @@ Reglas obligatorias:
 - Las escrituras asignan el tenant en backend.
 - La autorización valida pertenencia de las sucursales y recursos.
 - Las pruebas intentan acceso cruzado entre dos organizaciones.
+- `UserBranchAccess` se consulta en las operaciones con alcance de sucursal; una concesión revocada deja de autorizar inmediatamente y no requiere emitir otro JWT.
 
 No se implementarán bases por tenant ni esquemas por tenant en esta fase.
 

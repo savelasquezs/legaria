@@ -110,6 +110,42 @@ Códigos estables adicionales:
 - `account.duplicate_email`.
 - `invitation.invalid`, `invitation.expired`, `invitation.used`, `invitation.organization_suspended`.
 
+## Sucursales tenant
+
+| Método | Ruta | Política |
+| --- | --- | --- |
+| `GET` | `/api/tenant/branches` | `SUPER_ADMIN`, `BRANCH_ADMIN` con resultado limitado a sus asignaciones |
+| `POST` | `/api/tenant/branches` | `SUPER_ADMIN` |
+| `GET` | `/api/tenant/branches/{id}` | `SUPER_ADMIN` o `BRANCH_ADMIN` asignado |
+| `PUT` | `/api/tenant/branches/{id}` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/branches/{id}/deactivate` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/branches/{id}/reactivate` | `SUPER_ADMIN` |
+
+El listado acepta `page` (1), `pageSize` (20, máximo 100), `search` y `status=ACTIVE|INACTIVE`. El tenant siempre se obtiene del JWT validado. Nombre, dirección y municipio DIVIPOLA son obligatorios; correo y teléfono son opcionales. El nombre normalizado es único dentro de la organización.
+
+## Administradores de sucursal
+
+| Método | Ruta | Política |
+| --- | --- | --- |
+| `GET` | `/api/tenant/branch-administrators` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/branch-administrators` | `SUPER_ADMIN` |
+| `GET` | `/api/tenant/branch-administrators/{id}` | `SUPER_ADMIN` |
+| `PUT` | `/api/tenant/branch-administrators/{id}/pending-profile` | `SUPER_ADMIN`, solo pendiente |
+| `PUT` | `/api/tenant/branch-administrators/{id}/branches` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/branch-administrators/{id}/invitations` | `SUPER_ADMIN`, solo pendiente y activo |
+| `POST` | `/api/tenant/branch-administrators/{id}/suspend` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/branch-administrators/{id}/reactivate` | `SUPER_ADMIN` |
+
+Crear y corregir reciben `firstName`, `lastName`, `email` y `branchIds`, nunca contraseña. Las sucursales seleccionadas deben estar activas, pertenecer al tenant autenticado y contener al menos un elemento. Actualizar una identidad pendiente genera y entrega una invitación nueva; actualizar solo `branchIds` no reinvita.
+
+Estados públicos de cuenta: `ACTIVE|SUSPENDED`. Estados de invitación: `PENDING_DELIVERY|SENT|DELIVERY_FAILED|EXPIRED|ACCEPTED|REVOKED`.
+
+Códigos estables adicionales:
+
+- `branch.not_found`, `branch.invalid_data`, `branch.duplicate_name`, `branch.invalid_municipality`, `branch.invalid_status_transition`.
+- `branch_administrator.not_found`, `branch_administrator.already_accepted`, `branch_administrator.invalid_status_transition`.
+- `branch_access.required`, `branch_access.invalid`.
+
 ## Idempotencia y concurrencia
 
 No agregar infraestructura genérica de idempotencia. Aplicarla a endpoints que realmente puedan duplicar operaciones sensibles. Usar tokens de concurrencia cuando haya riesgo real de sobrescribir cambios importantes.

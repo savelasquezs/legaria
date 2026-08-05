@@ -6,6 +6,7 @@ config.global.stubs = {
   QPage: container,
   QCard: container,
   QCardSection: container,
+  QCardActions: container,
   QLayout: container,
   QHeader: container,
   QToolbar: container,
@@ -25,6 +26,11 @@ config.global.stubs = {
       '@input="$emit(\'update:modelValue\', $event.target.value)" />' +
       '<slot name="prepend" /><slot name="append" /></label>',
   },
+  QSelect: {
+    props: ['modelValue', 'label', 'options'],
+    emits: ['update:modelValue'],
+    template: '<label>{{ label }}<select><option v-for="option in options" :key="option.value || option.id || option.code">{{ option.label || option.name }}</option></select></label>',
+  },
   QBtn: {
     props: ['label', 'disable', 'type'],
     emits: ['click'],
@@ -36,6 +42,14 @@ config.global.stubs = {
   QSpinner: true,
   QSeparator: true,
   QSpace: true,
+  QChip: container,
+  QTd: container,
+  QPagination: true,
+  QDialog: container,
+  QTable: {
+    props: ['rows', 'noDataLabel'],
+    template: '<div>{{ rows.length === 0 ? noDataLabel : "" }}</div>',
+  },
 }
 
 class ResizeObserverStub {

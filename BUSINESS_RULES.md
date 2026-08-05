@@ -25,6 +25,10 @@ Este documento contiene las reglas aprobadas para el sistema de gestión de pers
 9. Un trabajador puede tener asignaciones activas en varias sucursales.
 10. Una asignación puede marcarse como principal.
 11. Solo puede existir una asignación principal activa por relación laboral.
+12. El nombre de una sucursal es único dentro de su organización después de normalizar espacios y mayúsculas/minúsculas.
+13. Una sucursal conserva dirección y municipio DIVIPOLA obligatorios; correo y teléfono de contacto son opcionales.
+14. Desactivar una sucursal conserva sus datos y accesos. Los accesos vuelven a ser efectivos si la sucursal se reactiva.
+15. Una sucursal inactiva no puede asignarse en una operación nueva.
 
 ## Aprovisionamiento del primer superadministrador
 
@@ -61,6 +65,13 @@ Reglas:
 3. Un `SUPER_ADMIN` tiene acceso a todas las sucursales de su organización.
 4. Tener acceso a una sucursal no autoriza datos de otra organización.
 5. El frontend puede ocultar acciones, pero el backend siempre valida el permiso.
+6. `SUPER_ADMIN` crea, edita, desactiva y reactiva sucursales, e invita y administra cuentas `BRANCH_ADMIN` de su organización.
+7. `BRANCH_ADMIN` solo consulta las sucursales con una concesión activa; las concesiones no se incluyen en el JWT.
+8. Un administrador activo debe conservar al menos una sucursal activa al crear o modificar sus accesos. La desactivación posterior de una sucursal no elimina la concesión histórica.
+9. Invitar un `BRANCH_ADMIN` crea cuenta no verificada, único rol `BRANCH_ADMIN`, reserva global de correo, accesos e invitación en una transacción. `EmployeeId` permanece nulo.
+10. Mientras la invitación siga pendiente, `SUPER_ADMIN` puede corregir identidad y sucursales; la corrección y el reenvío revocan invitaciones anteriores.
+11. Suspender un `BRANCH_ADMIN` rota su `security_stamp`, revoca sesiones refresh e invitaciones pendientes y bloquea login, refresh y JWT. Reactivar no restaura las sesiones revocadas.
+12. Los accesos por sucursal conservan fecha y actor de concesión y revocación; volver a conceder crea un registro histórico nuevo.
 
 ## Restricción sobre el propio expediente
 
@@ -167,4 +178,4 @@ Las reglas definitivas de renovación, firma, modificación y terminación aún 
 14. Los tokens de verificación duran 24 horas y los de restablecimiento 30 minutos; son de uso único y solo se persiste su SHA-256.
 15. Cinco fallos de login bloquean la cuenta durante 15 minutos.
 16. `account_emails` reserva de forma central y transaccional el correo normalizado de toda cuenta de plataforma o tenant.
-17. Las invitaciones tenant almacenan únicamente SHA-256 del token y exponen solo `PENDING_DELIVERY`, `SENT`, `DELIVERY_FAILED`, `EXPIRED` o `ACCEPTED`.
+17. Las invitaciones tenant almacenan únicamente SHA-256 del token y exponen `PENDING_DELIVERY`, `SENT`, `DELIVERY_FAILED`, `EXPIRED`, `ACCEPTED` o `REVOKED`.

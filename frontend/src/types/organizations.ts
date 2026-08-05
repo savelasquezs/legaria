@@ -5,6 +5,7 @@ export type InvitationStatus =
   | 'DELIVERY_FAILED'
   | 'EXPIRED'
   | 'ACCEPTED'
+  | 'REVOKED'
 
 export interface Department {
   code: string

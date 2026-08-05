@@ -470,6 +470,7 @@ public sealed class AuthenticationIntegrationTests(PostgreSqlFixture fixture)
         public string RenderTenantInvitation(
             string firstName,
             string organizationName,
+            string accessProfile,
             string invitationUrl,
             TimeSpan expiration) => invitationUrl;
     }

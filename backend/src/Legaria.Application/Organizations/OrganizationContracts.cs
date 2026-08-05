@@ -92,6 +92,7 @@ public static class InvitationStatuses
     public const string DeliveryFailed = "DELIVERY_FAILED";
     public const string Expired = "EXPIRED";
     public const string Accepted = "ACCEPTED";
+    public const string Revoked = "REVOKED";
 }
 
 public static class OrganizationErrorCodes

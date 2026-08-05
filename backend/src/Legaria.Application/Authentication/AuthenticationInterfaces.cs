@@ -97,7 +97,12 @@ public interface IEmailTemplateRenderer
 {
     string RenderVerification(string firstName, string verificationUrl, TimeSpan expiration);
     string RenderPasswordReset(string firstName, string resetUrl, TimeSpan expiration);
-    string RenderTenantInvitation(string firstName, string organizationName, string invitationUrl, TimeSpan expiration);
+    string RenderTenantInvitation(
+        string firstName,
+        string organizationName,
+        string accessProfile,
+        string invitationUrl,
+        TimeSpan expiration);
 }
 
 public interface IPlatformOwnerBootstrapper
