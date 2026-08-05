@@ -25,13 +25,24 @@ export async function getBranch(id: string): Promise<Branch> {
   return data
 }
 
+function normalizeBranchData(input: BranchData): BranchData {
+  return {
+    ...input,
+    contactEmail: input.contactEmail?.trim() || null,
+    phone: input.phone?.trim() || null,
+  }
+}
+
 export async function createBranch(input: BranchData): Promise<Branch> {
-  const { data } = await api.post<Branch>('/api/tenant/branches', input)
+  const { data } = await api.post<Branch>('/api/tenant/branches', normalizeBranchData(input))
   return data
 }
 
 export async function updateBranch(id: string, input: BranchData): Promise<Branch> {
-  const { data } = await api.put<Branch>(`/api/tenant/branches/${id}`, input)
+  const { data } = await api.put<Branch>(
+    `/api/tenant/branches/${id}`,
+    normalizeBranchData(input),
+  )
   return data
 }
 

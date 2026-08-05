@@ -87,7 +87,7 @@ public sealed class BranchesController(
 
 public sealed record BranchInputModel(
     [Required, MaxLength(150)] string Name,
-    [EmailAddress, MaxLength(320)] string? ContactEmail,
+    [MaxLength(320)] string? ContactEmail,
     [MaxLength(30)] string? Phone,
     [Required, MaxLength(250)] string Address,
     [Required, MaxLength(5)] string MunicipalityCode)

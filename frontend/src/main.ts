@@ -3,6 +3,7 @@ import 'quasar/dist/quasar.css'
 import './styles/app.css'
 import { createApp } from 'vue'
 import {
+  ClosePopup,
   Notify,
   QBanner,
   QBtn,
@@ -60,6 +61,7 @@ app.use(Quasar, {
     QTable,
     QTd,
   },
+  directives: { ClosePopup },
   plugins: { Notify },
   config: {
     brand: {
