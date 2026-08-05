@@ -37,4 +37,28 @@ public sealed class EmployeeAssignment
             CreatedAt = now,
             UpdatedAt = now
         };
+
+    public bool End(DateOnly endedOn, DateTimeOffset now)
+    {
+        if (EndedOn is not null)
+        {
+            return false;
+        }
+
+        EndedOn = endedOn;
+        UpdatedAt = now;
+        return true;
+    }
+
+    public bool SetPrimary(bool isPrimary, DateTimeOffset now)
+    {
+        if (IsPrimary == isPrimary)
+        {
+            return false;
+        }
+
+        IsPrimary = isPrimary;
+        UpdatedAt = now;
+        return true;
+    }
 }

@@ -197,6 +197,17 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+await using (var migrationScope = app.Services.CreateAsyncScope())
+{
+    var dbContext = migrationScope.ServiceProvider.GetRequiredService<LegariaDbContext>();
+    var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync(CancellationToken.None);
+    if (pendingMigrations.Any())
+    {
+        throw new InvalidOperationException(
+            $"La base de datos tiene migraciones pendientes: {string.Join(", ", pendingMigrations)}. Ejecute la tarea de migración antes de iniciar la API.");
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

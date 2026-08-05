@@ -149,6 +149,10 @@ internal sealed class EmploymentRelationshipConfiguration : IEntityTypeConfigura
         builder.HasKey(x => x.Id);
         builder.HasAlternateKey(x => new { x.OrganizationId, x.Id });
         builder.HasIndex(x => new { x.OrganizationId, x.EmployeeId, x.StartedOn });
+        builder.HasIndex(x => new { x.OrganizationId, x.EmployeeId })
+            .IsUnique()
+            .HasDatabaseName("ix_employment_relationships_active_employee")
+            .HasFilter("\"ended_on\" IS NULL");
         builder.HasOne<Employee>()
             .WithMany()
             .HasForeignKey(x => new { x.OrganizationId, x.EmployeeId })
@@ -188,6 +192,10 @@ internal sealed class EmployeeAssignmentConfiguration : IEntityTypeConfiguration
                 "ended_on IS NULL OR ended_on >= started_on"));
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => new { x.OrganizationId, x.BranchId, x.EndedOn });
+        builder.HasIndex(x => new { x.OrganizationId, x.EmploymentRelationshipId, x.BranchId })
+            .IsUnique()
+            .HasDatabaseName("ix_employee_assignments_active_branch")
+            .HasFilter("\"ended_on\" IS NULL");
         builder.HasIndex(x => new { x.OrganizationId, x.EmploymentRelationshipId })
             .IsUnique()
             .HasFilter("\"is_primary\" = TRUE AND \"ended_on\" IS NULL");

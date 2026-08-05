@@ -2,6 +2,7 @@ using Legaria.Application.Employees;
 using Legaria.Domain.Authentication;
 using Legaria.Domain.Employees;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 
 namespace Legaria.Infrastructure.Persistence;
@@ -75,6 +76,64 @@ public sealed class EmployeeRepository(LegariaDbContext dbContext) : IEmployeeRe
         return employee is null ? null : (await LoadDetailsAsync([employee], cancellationToken)).Single();
     }
 
+    public async Task<EmployeeDetailQueryItem?> FindEmploymentDetailsAsync(
+        Guid organizationId,
+        Guid employeeId,
+        CancellationToken cancellationToken)
+    {
+        var employee = await dbContext.Employees.AsNoTracking().SingleOrDefaultAsync(
+            item => item.OrganizationId == organizationId && item.Id == employeeId,
+            cancellationToken);
+        if (employee is null)
+        {
+            return null;
+        }
+
+        var relationships = await dbContext.EmploymentRelationships.AsNoTracking()
+            .Where(item => item.OrganizationId == organizationId && item.EmployeeId == employeeId)
+            .OrderByDescending(item => item.StartedOn)
+            .ToArrayAsync(cancellationToken);
+        var relationshipIds = relationships.Select(item => item.Id).ToArray();
+        var assignments = await dbContext.EmployeeAssignments.AsNoTracking()
+            .Where(item => item.OrganizationId == organizationId && relationshipIds.Contains(item.EmploymentRelationshipId))
+            .ToArrayAsync(cancellationToken);
+        var branchIds = assignments.Select(item => item.BranchId).Distinct().ToArray();
+        var positionIds = assignments.Select(item => item.JobPositionId).Distinct().ToArray();
+        var branches = await dbContext.Branches.AsNoTracking()
+            .Where(item => item.OrganizationId == organizationId && branchIds.Contains(item.Id))
+            .ToDictionaryAsync(item => item.Id, cancellationToken);
+        var positions = await dbContext.JobPositions.AsNoTracking()
+            .Where(item => item.OrganizationId == organizationId && positionIds.Contains(item.Id))
+            .ToDictionaryAsync(item => item.Id, cancellationToken);
+        var account = await dbContext.UserAccounts.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.OrganizationId == organizationId && item.EmployeeId == employeeId, cancellationToken);
+        AccountToken? invitation = null;
+        IReadOnlyCollection<Guid> administrativeBranchIds = [];
+        if (account is not null)
+        {
+            invitation = await dbContext.AccountTokens.AsNoTracking()
+                .Where(item => item.UserAccountId == account.Id && item.Purpose == AccountTokenPurpose.TenantInvitation)
+                .OrderByDescending(item => item.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+            administrativeBranchIds = await dbContext.UserBranchAccesses.AsNoTracking()
+                .Where(item => item.OrganizationId == organizationId && item.UserAccountId == account.Id && item.RevokedAt == null)
+                .Select(item => item.BranchId)
+                .ToArrayAsync(cancellationToken);
+        }
+
+        return new EmployeeDetailQueryItem(
+            employee,
+            relationships.Select(relationship => new EmploymentRelationshipQueryItem(
+                relationship,
+                assignments.Where(item => item.EmploymentRelationshipId == relationship.Id)
+                    .Select(item => new EmployeeAssignmentQueryItem(item, branches[item.BranchId], positions[item.JobPositionId]))
+                    .OrderByDescending(item => item.Assignment.StartedOn)
+                    .ToArray())).ToArray(),
+            account,
+            invitation,
+            administrativeBranchIds);
+    }
+
     public Task<Employee?> FindAsync(Guid organizationId, Guid employeeId, CancellationToken cancellationToken) =>
         dbContext.Employees.SingleOrDefaultAsync(
             item => item.OrganizationId == organizationId && item.Id == employeeId,
@@ -103,6 +162,48 @@ public sealed class EmployeeRepository(LegariaDbContext dbContext) : IEmployeeRe
                 item.EndedOn == null,
                 cancellationToken);
 
+    public Task<EmploymentRelationship?> FindLatestRelationshipAsync(
+        Guid organizationId,
+        Guid employeeId,
+        CancellationToken cancellationToken) =>
+        dbContext.EmploymentRelationships
+            .OrderByDescending(item => item.StartedOn)
+            .FirstOrDefaultAsync(item => item.OrganizationId == organizationId && item.EmployeeId == employeeId, cancellationToken);
+
+    public Task<EmploymentRelationship?> FindRelationshipAsync(
+        Guid organizationId,
+        Guid employeeId,
+        Guid relationshipId,
+        CancellationToken cancellationToken) =>
+        dbContext.EmploymentRelationships.SingleOrDefaultAsync(item =>
+            item.OrganizationId == organizationId &&
+            item.EmployeeId == employeeId &&
+            item.Id == relationshipId,
+            cancellationToken);
+
+    public async Task<IReadOnlyCollection<EmployeeAssignment>> FindActiveAssignmentsAsync(
+        Guid organizationId,
+        Guid relationshipId,
+        CancellationToken cancellationToken) =>
+        await dbContext.EmployeeAssignments.Where(item =>
+            item.OrganizationId == organizationId &&
+            item.EmploymentRelationshipId == relationshipId &&
+            item.EndedOn == null).ToArrayAsync(cancellationToken);
+
+    public Task<EmployeeAssignment?> FindAssignmentAsync(
+        Guid organizationId,
+        Guid employeeId,
+        Guid assignmentId,
+        CancellationToken cancellationToken) =>
+        dbContext.EmployeeAssignments.SingleOrDefaultAsync(assignment =>
+            assignment.OrganizationId == organizationId &&
+            assignment.Id == assignmentId &&
+            dbContext.EmploymentRelationships.Any(relationship =>
+                relationship.OrganizationId == organizationId &&
+                relationship.Id == assignment.EmploymentRelationshipId &&
+                relationship.EmployeeId == employeeId),
+            cancellationToken);
+
     public Task<bool> ActiveAssignmentExistsAsync(
         Guid organizationId,
         Guid relationshipId,
@@ -126,6 +227,26 @@ public sealed class EmployeeRepository(LegariaDbContext dbContext) : IEmployeeRe
             item.EndedOn == null,
             cancellationToken);
 
+    public Task<bool> AssignmentPeriodOverlapsAsync(
+        Guid organizationId,
+        Guid relationshipId,
+        Guid branchId,
+        DateOnly startedOn,
+        DateOnly? endedOn,
+        Guid? excludingAssignmentId,
+        CancellationToken cancellationToken)
+    {
+        var upperBound = endedOn ?? DateOnly.MaxValue;
+        return dbContext.EmployeeAssignments.AnyAsync(item =>
+            item.OrganizationId == organizationId &&
+            item.EmploymentRelationshipId == relationshipId &&
+            item.BranchId == branchId &&
+            item.Id != excludingAssignmentId &&
+            item.StartedOn <= upperBound &&
+            (item.EndedOn == null || item.EndedOn >= startedOn),
+            cancellationToken);
+    }
+
     public Task<JobPosition?> FindActiveJobPositionAsync(Guid organizationId, Guid id, CancellationToken cancellationToken) =>
         dbContext.JobPositions.SingleOrDefaultAsync(item =>
             item.OrganizationId == organizationId &&
@@ -133,21 +254,26 @@ public sealed class EmployeeRepository(LegariaDbContext dbContext) : IEmployeeRe
             item.Status == JobPositionStatus.Active,
             cancellationToken);
 
-    public async Task<IReadOnlyCollection<JobPosition>> ListActiveJobPositionsAsync(
+    public Task<JobPosition?> FindJobPositionAsync(Guid organizationId, Guid id, CancellationToken cancellationToken) =>
+        dbContext.JobPositions.SingleOrDefaultAsync(item => item.OrganizationId == organizationId && item.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyCollection<JobPosition>> ListJobPositionsAsync(
         Guid organizationId,
+        JobPositionStatus? status,
         CancellationToken cancellationToken) =>
         await dbContext.JobPositions
             .AsNoTracking()
-            .Where(item => item.OrganizationId == organizationId && item.Status == JobPositionStatus.Active)
+            .Where(item => item.OrganizationId == organizationId && (status == null || item.Status == status))
             .OrderBy(item => item.Name)
             .ToArrayAsync(cancellationToken);
 
     public Task<bool> JobPositionNameExistsAsync(
         Guid organizationId,
         string normalizedName,
+        Guid? excludingId,
         CancellationToken cancellationToken) =>
         dbContext.JobPositions.AnyAsync(item =>
-            item.OrganizationId == organizationId && item.NormalizedName == normalizedName,
+            item.OrganizationId == organizationId && item.NormalizedName == normalizedName && item.Id != excludingId,
             cancellationToken);
 
     public Task<UserAccount?> FindLinkedAccountAsync(
@@ -165,6 +291,9 @@ public sealed class EmployeeRepository(LegariaDbContext dbContext) : IEmployeeRe
     public void AddRelationship(EmploymentRelationship relationship) => dbContext.EmploymentRelationships.Add(relationship);
     public void AddAssignment(EmployeeAssignment assignment) => dbContext.EmployeeAssignments.Add(assignment);
     public void AddJobPosition(JobPosition position) => dbContext.JobPositions.Add(position);
+
+    public async Task<IEmployeeTransaction> BeginTransactionAsync(CancellationToken cancellationToken) =>
+        new EmployeeTransaction(await dbContext.Database.BeginTransactionAsync(cancellationToken));
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
@@ -188,6 +317,18 @@ public sealed class EmployeeRepository(LegariaDbContext dbContext) : IEmployeeRe
                 throw new EmployeeException(
                     EmployeeErrorCodes.JobPositionDuplicateName,
                     "Ya existe un cargo con ese nombre.",
+                    EmployeeErrorKind.Conflict);
+            }
+
+            if (postgres.ConstraintName is "ix_employment_relationships_active_employee" or "ix_employee_assignments_active_branch")
+            {
+                throw new EmployeeException(
+                    postgres.ConstraintName == "ix_employment_relationships_active_employee"
+                        ? EmployeeErrorCodes.RelationshipInvalidState
+                        : EmployeeErrorCodes.DuplicateAssignment,
+                    postgres.ConstraintName == "ix_employment_relationships_active_employee"
+                        ? "El trabajador ya tiene una relación laboral activa."
+                        : "El trabajador ya tiene una asignación activa en esta sucursal.",
                     EmployeeErrorKind.Conflict);
             }
 
@@ -274,4 +415,10 @@ public sealed class EmployeeRepository(LegariaDbContext dbContext) : IEmployeeRe
         value.Replace("\\", "\\\\", StringComparison.Ordinal)
             .Replace("%", "\\%", StringComparison.Ordinal)
             .Replace("_", "\\_", StringComparison.Ordinal);
+
+    private sealed class EmployeeTransaction(IDbContextTransaction transaction) : IEmployeeTransaction
+    {
+        public Task CommitAsync(CancellationToken cancellationToken) => transaction.CommitAsync(cancellationToken);
+        public ValueTask DisposeAsync() => transaction.DisposeAsync();
+    }
 }

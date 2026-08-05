@@ -251,7 +251,7 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
             created.Id,
             new AssignEmployeeInput(
                 services.PositionId,
-                new DateOnly(2026, 8, 5),
+                new DateOnly(2026, 8, 4),
                 false,
                 null),
             services.SuperActor,
@@ -259,7 +259,7 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
             CancellationToken.None);
 
         Assert.Null(assigned.AdministrativeAccess);
-        Assert.Equal(2, assigned.Assignments.Count);
+        Assert.Equal(2, assigned.EmploymentRelationships.Single().Assignments.Count);
         Assert.Empty(await context.UserAccounts.Where(item => item.EmployeeId == created.Id).ToArrayAsync());
         Assert.Equal(
             created.Id,
@@ -276,6 +276,197 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
         var access = Assert.IsType<EmployeeAdministrativeAccessResult>(invited.AdministrativeAccess);
         Assert.Equal(created.Id, (await context.UserAccounts.SingleAsync(item => item.Id == access.AccountId)).EmployeeId);
         Assert.Equal(2, access.BranchIds.Count);
+    }
+
+    [Fact]
+    public async Task JobPositionsCanBeManagedWithoutLosingHistory()
+    {
+        await fixture.ResetAsync();
+        await using var context = fixture.CreateDbContext();
+        var services = await CreateServicesAsync(context);
+
+        var created = await services.Employees.CreateJobPositionAsync(
+            new JobPositionInput("  Auxiliar   contable  "),
+            services.SuperActor,
+            CancellationToken.None);
+        Assert.Equal("Auxiliar contable", created.Name);
+        var duplicate = await Assert.ThrowsAsync<EmployeeException>(() => services.Employees.CreateJobPositionAsync(
+            new JobPositionInput("auxiliar contable"),
+            services.SuperActor,
+            CancellationToken.None));
+        Assert.Equal(EmployeeErrorCodes.JobPositionDuplicateName, duplicate.Code);
+        var crossTenant = await Assert.ThrowsAsync<EmployeeException>(() => services.Employees.UpdateJobPositionAsync(
+            created.Id,
+            new JobPositionInput("Otro"),
+            services.OtherSuperActor,
+            CancellationToken.None));
+        Assert.Equal(EmployeeErrorCodes.JobPositionNotFound, crossTenant.Code);
+
+        var updated = await services.Employees.UpdateJobPositionAsync(
+            created.Id,
+            new JobPositionInput("Analista contable"),
+            services.SuperActor,
+            CancellationToken.None);
+        Assert.Equal("Analista contable", updated.Name);
+
+        var inactive = await services.Employees.DeactivateJobPositionAsync(
+            created.Id,
+            services.SuperActor,
+            CancellationToken.None);
+        Assert.Equal("INACTIVE", inactive.Status);
+        Assert.Contains(
+            await services.Employees.ListJobPositionsAsync("INACTIVE", services.SuperActor, CancellationToken.None),
+            item => item.Id == created.Id);
+
+        var reactivated = await services.Employees.ReactivateJobPositionAsync(
+            created.Id,
+            services.SuperActor,
+            CancellationToken.None);
+        Assert.Equal("ACTIVE", reactivated.Status);
+    }
+
+    [Fact]
+    public async Task EndingRelationshipClosesAssignmentsAndSuspendsLinkedAdministrator()
+    {
+        await fixture.ResetAsync();
+        await using var context = fixture.CreateDbContext();
+        var services = await CreateServicesAsync(context);
+        var branch = await services.Branches.CreateBranchAsync(
+            BranchInput("Centro"), services.SuperActor, Client(), CancellationToken.None);
+        var created = await CreateAdministratorAsync(services, branch.Id, [branch.Id]);
+        var relationship = Assert.Single(created.EmploymentRelationships);
+        var accountId = Assert.IsType<EmployeeAdministrativeAccessResult>(created.AdministrativeAccess).AccountId;
+
+        var ended = await services.Employees.EndRelationshipAsync(
+            created.Id,
+            relationship.Id,
+            new EndEmploymentRelationshipInput(new DateOnly(2026, 8, 4)),
+            services.SuperActor,
+            Client(),
+            CancellationToken.None);
+
+        Assert.Equal("ENDED", Assert.Single(ended.EmploymentRelationships).Status);
+        Assert.All(ended.EmploymentRelationships.Single().Assignments, item => Assert.Equal("ENDED", item.Status));
+        Assert.Equal(AccountStatus.Suspended, (await context.UserAccounts.SingleAsync(item => item.Id == accountId)).Status);
+        Assert.All(
+            await context.AccountTokens.Where(item => item.UserAccountId == accountId && item.Purpose == AccountTokenPurpose.TenantInvitation).ToArrayAsync(),
+            item => Assert.NotNull(item.RevokedAt));
+    }
+
+    [Fact]
+    public async Task AssignmentTransitionPreservesPeriodsAndPrimaryCanMove()
+    {
+        await fixture.ResetAsync();
+        await using var context = fixture.CreateDbContext();
+        var services = await CreateServicesAsync(context);
+        var first = await services.Branches.CreateBranchAsync(
+            BranchInput("Centro"), services.SuperActor, Client(), CancellationToken.None);
+        var second = await services.Branches.CreateBranchAsync(
+            BranchInput("Norte"), services.SuperActor, Client(), CancellationToken.None);
+        var replacementPosition = await services.Employees.CreateJobPositionAsync(
+            new JobPositionInput("Coordinador"), services.SuperActor, CancellationToken.None);
+        var created = await services.Employees.CreateAsync(
+            first.Id,
+            new CreateEmployeeInput("CC", "1030555555", "Lina", "García", services.PositionId, new DateOnly(2026, 8, 3), true, null),
+            services.SuperActor,
+            Client(),
+            CancellationToken.None);
+        var original = Assert.Single(created.EmploymentRelationships.Single().Assignments);
+
+        var transitioned = await services.Employees.TransitionAssignmentAsync(
+            created.Id,
+            original.Id,
+            new TransitionEmployeeAssignmentInput(first.Id, replacementPosition.Id, new DateOnly(2026, 8, 4)),
+            services.SuperActor,
+            Client(),
+            CancellationToken.None);
+        var assignments = transitioned.EmploymentRelationships.Single().Assignments;
+        Assert.Contains(assignments, item => item.Id == original.Id && item.EndedOn == new DateOnly(2026, 8, 3));
+        Assert.Contains(assignments, item => item.JobPositionId == replacementPosition.Id && item.StartedOn == new DateOnly(2026, 8, 4) && item.IsPrimary);
+
+        var withSecond = await services.Employees.AssignAsync(
+            second.Id,
+            created.Id,
+            new AssignEmployeeInput(replacementPosition.Id, new DateOnly(2026, 8, 4), false, null),
+            services.SuperActor,
+            Client(),
+            CancellationToken.None);
+        var secondary = withSecond.EmploymentRelationships.Single().Assignments.Single(item => item.BranchId == second.Id);
+        var changed = await services.Employees.MakePrimaryAssignmentAsync(
+            created.Id,
+            secondary.Id,
+            services.SuperActor,
+            Client(),
+            CancellationToken.None);
+        Assert.True(changed.EmploymentRelationships.Single().Assignments.Single(item => item.Id == secondary.Id).IsPrimary);
+        Assert.Single(changed.EmploymentRelationships.Single().Assignments.Where(item => item.Status == "ACTIVE" && item.IsPrimary));
+    }
+
+    [Fact]
+    public async Task FutureEmploymentDatesAreRejected()
+    {
+        await fixture.ResetAsync();
+        await using var context = fixture.CreateDbContext();
+        var services = await CreateServicesAsync(context);
+        var branch = await services.Branches.CreateBranchAsync(
+            BranchInput("Centro"), services.SuperActor, Client(), CancellationToken.None);
+
+        var exception = await Assert.ThrowsAsync<EmployeeException>(() => services.Employees.CreateAsync(
+            branch.Id,
+            new CreateEmployeeInput("CC", "1030666666", "Mario", "Futuro", services.PositionId, new DateOnly(2026, 8, 5), true, null),
+            services.SuperActor,
+            Client(),
+            CancellationToken.None));
+
+        Assert.Equal(EmployeeErrorCodes.InvalidDate, exception.Code);
+    }
+
+    [Fact]
+    public async Task DatabaseRejectsDuplicateActiveRelationshipsAndBranchAssignments()
+    {
+        await fixture.ResetAsync();
+        await using (var relationshipContext = fixture.CreateDbContext())
+        {
+            var services = await CreateServicesAsync(relationshipContext);
+            var branch = await services.Branches.CreateBranchAsync(
+                BranchInput("Centro"), services.SuperActor, Client(), CancellationToken.None);
+            var created = await services.Employees.CreateAsync(
+                branch.Id,
+                new CreateEmployeeInput("CC", "1030777777", "Rosa", "Duplicada", services.PositionId, new DateOnly(2026, 8, 4), true, null),
+                services.SuperActor,
+                Client(),
+                CancellationToken.None);
+            relationshipContext.Add(EmploymentRelationship.Create(
+                services.SuperActor.OrganizationId!.Value,
+                created.Id,
+                new DateOnly(2026, 8, 4),
+                new DateTimeOffset(2026, 8, 4, 20, 0, 0, TimeSpan.Zero)));
+
+            await Assert.ThrowsAsync<DbUpdateException>(() => relationshipContext.SaveChangesAsync());
+        }
+
+        await fixture.ResetAsync();
+        await using var assignmentContext = fixture.CreateDbContext();
+        var assignmentServices = await CreateServicesAsync(assignmentContext);
+        var assignmentBranch = await assignmentServices.Branches.CreateBranchAsync(
+            BranchInput("Centro"), assignmentServices.SuperActor, Client(), CancellationToken.None);
+        var assignmentEmployee = await assignmentServices.Employees.CreateAsync(
+            assignmentBranch.Id,
+            new CreateEmployeeInput("CC", "1030888888", "Sara", "Duplicada", assignmentServices.PositionId, new DateOnly(2026, 8, 4), true, null),
+            assignmentServices.SuperActor,
+            Client(),
+            CancellationToken.None);
+        var relationship = Assert.Single(assignmentEmployee.EmploymentRelationships);
+        assignmentContext.Add(EmployeeAssignment.Create(
+            assignmentServices.SuperActor.OrganizationId!.Value,
+            relationship.Id,
+            assignmentBranch.Id,
+            assignmentServices.PositionId,
+            false,
+            new DateOnly(2026, 8, 4),
+            new DateTimeOffset(2026, 8, 4, 20, 0, 0, TimeSpan.Zero)));
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => assignmentContext.SaveChangesAsync());
     }
 
     private static async Task<TestServices> CreateServicesAsync(LegariaDbContext context)
@@ -333,6 +524,7 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
         var employees = new EmployeeService(
             new EmployeeRepository(context),
             new BranchRepository(context),
+            branches,
             normalizer,
             passwords,
             tokens,
@@ -372,7 +564,7 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
     private static BranchInput BranchInput(string name) =>
         new(name, "sucursal@legaria.test", "+573001112233", "Carrera 7 # 10-20", "11001");
 
-    private static Task<EmployeeResult> CreateAdministratorAsync(
+    private static Task<EmployeeDetailResult> CreateAdministratorAsync(
         TestServices services,
         Guid assignmentBranchId,
         IReadOnlyCollection<Guid> accessBranchIds,

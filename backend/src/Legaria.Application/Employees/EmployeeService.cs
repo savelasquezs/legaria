@@ -10,6 +10,7 @@ namespace Legaria.Application.Employees;
 public sealed class EmployeeService(
     IEmployeeRepository repository,
     IBranchRepository branchRepository,
+    IBranchService branchService,
     IEmailNormalizer emailNormalizer,
     IPasswordService passwordService,
     ISecureTokenService secureTokenService,
@@ -48,14 +49,14 @@ public sealed class EmployeeService(
             total == 0 ? 0 : (int)Math.Ceiling(total / (double)pageSize));
     }
 
-    public async Task<EmployeeResult> GetAsync(Guid id, CurrentAccount actor, CancellationToken cancellationToken)
+    public async Task<EmployeeDetailResult> GetAsync(Guid id, CurrentAccount actor, CancellationToken cancellationToken)
     {
         var organizationId = EnsureSuperAdministrator(actor);
-        return ToResult(await repository.FindDetailsAsync(organizationId, id, cancellationToken)
+        return ToDetailResult(await repository.FindEmploymentDetailsAsync(organizationId, id, cancellationToken)
             ?? throw EmployeeNotFound());
     }
 
-    public async Task<EmployeeResult> CreateAsync(
+    public async Task<EmployeeDetailResult> CreateAsync(
         Guid branchId,
         CreateEmployeeInput input,
         CurrentAccount actor,
@@ -65,6 +66,7 @@ public sealed class EmployeeService(
         var organizationId = EnsureSuperAdministrator(actor);
         var branch = await FindActiveBranchAsync(organizationId, branchId, cancellationToken);
         var position = await FindPositionAsync(organizationId, input.JobPositionId, cancellationToken);
+        ValidateOperationalDate(input.StartedOn, "fecha de inicio");
         var identity = ValidateIdentity(input.DocumentType, input.DocumentNumber, input.FirstName, input.LastName);
         if (await repository.DocumentExistsAsync(
             organizationId,
@@ -115,7 +117,7 @@ public sealed class EmployeeService(
         return await GetAsync(employee.Id, actor, cancellationToken);
     }
 
-    public async Task<EmployeeResult> AssignAsync(
+    public async Task<EmployeeDetailResult> AssignAsync(
         Guid branchId,
         Guid employeeId,
         AssignEmployeeInput input,
@@ -128,15 +130,27 @@ public sealed class EmployeeService(
             ?? throw EmployeeNotFound();
         var branch = await FindActiveBranchAsync(organizationId, branchId, cancellationToken);
         var position = await FindPositionAsync(organizationId, input.JobPositionId, cancellationToken);
+        ValidateOperationalDate(input.StartedOn, "fecha de inicio");
         var now = clock.UtcNow;
         var relationship = await repository.FindActiveRelationshipAsync(organizationId, employeeId, cancellationToken);
         if (relationship is null)
         {
+            var latest = await repository.FindLatestRelationshipAsync(organizationId, employeeId, cancellationToken);
+            if (latest?.EndedOn is { } previousEnd && input.StartedOn <= previousEnd)
+            {
+                throw InvalidDate("La nueva relación laboral debe comenzar después de la relación anterior.");
+            }
+
             relationship = EmploymentRelationship.Create(organizationId, employeeId, input.StartedOn, now);
             repository.AddRelationship(relationship);
         }
         else
         {
+            if (input.StartedOn < relationship.StartedOn)
+            {
+                throw InvalidDate("La asignación no puede comenzar antes de la relación laboral.");
+            }
+
             if (await repository.ActiveAssignmentExistsAsync(organizationId, relationship.Id, branchId, cancellationToken))
             {
                 throw new EmployeeException(
@@ -152,6 +166,18 @@ public sealed class EmployeeService(
                     "La relación laboral ya tiene una asignación principal activa.",
                     EmployeeErrorKind.Conflict);
             }
+        }
+
+        if (await repository.AssignmentPeriodOverlapsAsync(
+            organizationId,
+            relationship.Id,
+            branchId,
+            input.StartedOn,
+            null,
+            null,
+            cancellationToken))
+        {
+            throw DuplicateAssignment();
         }
 
         repository.AddAssignment(EmployeeAssignment.Create(
@@ -181,7 +207,7 @@ public sealed class EmployeeService(
         return await GetAsync(employee.Id, actor, cancellationToken);
     }
 
-    public async Task<EmployeeResult> GrantAdministrativeAccessAsync(
+    public async Task<EmployeeDetailResult> GrantAdministrativeAccessAsync(
         Guid employeeId,
         AdministrativeAccessInput input,
         CurrentAccount actor,
@@ -203,11 +229,12 @@ public sealed class EmployeeService(
     }
 
     public async Task<IReadOnlyCollection<JobPositionResult>> ListJobPositionsAsync(
+        string? status,
         CurrentAccount actor,
         CancellationToken cancellationToken)
     {
         var organizationId = EnsureSuperAdministrator(actor);
-        return (await repository.ListActiveJobPositionsAsync(organizationId, cancellationToken))
+        return (await repository.ListJobPositionsAsync(organizationId, ParsePositionStatus(status), cancellationToken))
             .Select(ToPositionResult)
             .ToArray();
     }
@@ -218,18 +245,260 @@ public sealed class EmployeeService(
         CancellationToken cancellationToken)
     {
         var organizationId = EnsureSuperAdministrator(actor);
-        var name = CleanRequired(input.Name, 150, "nombre del cargo");
-        var normalizedName = name.ToUpperInvariant();
-        if (await repository.JobPositionNameExistsAsync(organizationId, normalizedName, cancellationToken))
+        var (name, normalizedName) = CleanPositionName(input.Name);
+        if (await repository.JobPositionNameExistsAsync(organizationId, normalizedName, null, cancellationToken))
         {
-            throw new EmployeeException(
-                EmployeeErrorCodes.JobPositionDuplicateName,
-                "Ya existe un cargo con ese nombre.",
-                EmployeeErrorKind.Conflict);
+            throw DuplicatePosition();
         }
 
         var position = JobPosition.Create(organizationId, name, normalizedName, clock.UtcNow);
         repository.AddJobPosition(position);
+        await repository.SaveChangesAsync(cancellationToken);
+        return ToPositionResult(position);
+    }
+
+    public async Task<JobPositionResult> UpdateJobPositionAsync(
+        Guid id,
+        JobPositionInput input,
+        CurrentAccount actor,
+        CancellationToken cancellationToken)
+    {
+        var organizationId = EnsureSuperAdministrator(actor);
+        var position = await repository.FindJobPositionAsync(organizationId, id, cancellationToken)
+            ?? throw PositionNotFound();
+        var (name, normalizedName) = CleanPositionName(input.Name);
+        if (await repository.JobPositionNameExistsAsync(organizationId, normalizedName, id, cancellationToken))
+        {
+            throw DuplicatePosition();
+        }
+
+        if (!position.Rename(name, normalizedName, clock.UtcNow))
+        {
+            throw new EmployeeException(EmployeeErrorCodes.InvalidData, "El cargo no tiene cambios.", EmployeeErrorKind.Conflict);
+        }
+
+        await repository.SaveChangesAsync(cancellationToken);
+        return ToPositionResult(position);
+    }
+
+    public Task<JobPositionResult> DeactivateJobPositionAsync(
+        Guid id,
+        CurrentAccount actor,
+        CancellationToken cancellationToken) =>
+        ChangePositionStatusAsync(id, true, actor, cancellationToken);
+
+    public Task<JobPositionResult> ReactivateJobPositionAsync(
+        Guid id,
+        CurrentAccount actor,
+        CancellationToken cancellationToken) =>
+        ChangePositionStatusAsync(id, false, actor, cancellationToken);
+
+    public async Task<EmployeeDetailResult> EndRelationshipAsync(
+        Guid employeeId,
+        Guid relationshipId,
+        EndEmploymentRelationshipInput input,
+        CurrentAccount actor,
+        ClientContext client,
+        CancellationToken cancellationToken)
+    {
+        var organizationId = EnsureSuperAdministrator(actor);
+        ValidateOperationalDate(input.EndedOn, "fecha de finalización");
+        var relationship = await repository.FindRelationshipAsync(organizationId, employeeId, relationshipId, cancellationToken)
+            ?? throw RelationshipNotFound();
+        if (relationship.EndedOn is not null)
+        {
+            throw InvalidRelationshipState("La relación laboral ya está finalizada.");
+        }
+
+        if (input.EndedOn < relationship.StartedOn)
+        {
+            throw InvalidDate("La relación laboral no puede terminar antes de comenzar.");
+        }
+
+        var assignments = await repository.FindActiveAssignmentsAsync(organizationId, relationship.Id, cancellationToken);
+        if (assignments.Any(item => item.StartedOn > input.EndedOn))
+        {
+            throw InvalidDate("La fecha de finalización es anterior a una asignación activa.");
+        }
+
+        await using var transaction = await repository.BeginTransactionAsync(cancellationToken);
+        var now = clock.UtcNow;
+        foreach (var assignment in assignments)
+        {
+            assignment.End(input.EndedOn, now);
+        }
+
+        relationship.End(input.EndedOn, now);
+        branchRepository.AddAuditEvent(CreateAudit(
+            "EMPLOYMENT_RELATIONSHIP_ENDED",
+            actor,
+            organizationId,
+            null,
+            client,
+            now));
+        await repository.SaveChangesAsync(cancellationToken);
+
+        var account = await repository.FindLinkedAccountAsync(organizationId, employeeId, cancellationToken);
+        if (account is { Status: AccountStatus.Active } && account.Roles.Any(item => item.SystemRoleId == SystemRole.BranchAdminId))
+        {
+            await branchService.SuspendAdministratorAsync(account.Id, actor, client, cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return await GetAsync(employeeId, actor, cancellationToken);
+    }
+
+    public async Task<EmployeeDetailResult> EndAssignmentAsync(
+        Guid employeeId,
+        Guid assignmentId,
+        EndEmployeeAssignmentInput input,
+        CurrentAccount actor,
+        ClientContext client,
+        CancellationToken cancellationToken)
+    {
+        var organizationId = EnsureSuperAdministrator(actor);
+        ValidateOperationalDate(input.EndedOn, "fecha de finalización");
+        var assignment = await repository.FindAssignmentAsync(organizationId, employeeId, assignmentId, cancellationToken)
+            ?? throw AssignmentNotFound();
+        if (assignment.EndedOn is not null)
+        {
+            throw InvalidAssignmentState("La asignación ya está finalizada.");
+        }
+
+        if (input.EndedOn < assignment.StartedOn)
+        {
+            throw InvalidDate("La asignación no puede terminar antes de comenzar.");
+        }
+
+        assignment.End(input.EndedOn, clock.UtcNow);
+        branchRepository.AddAuditEvent(CreateAudit("EMPLOYEE_ASSIGNMENT_ENDED", actor, organizationId, null, client, clock.UtcNow, assignment.BranchId));
+        await repository.SaveChangesAsync(cancellationToken);
+        return await GetAsync(employeeId, actor, cancellationToken);
+    }
+
+    public async Task<EmployeeDetailResult> TransitionAssignmentAsync(
+        Guid employeeId,
+        Guid assignmentId,
+        TransitionEmployeeAssignmentInput input,
+        CurrentAccount actor,
+        ClientContext client,
+        CancellationToken cancellationToken)
+    {
+        var organizationId = EnsureSuperAdministrator(actor);
+        ValidateOperationalDate(input.EffectiveOn, "fecha efectiva");
+        var assignment = await repository.FindAssignmentAsync(organizationId, employeeId, assignmentId, cancellationToken)
+            ?? throw AssignmentNotFound();
+        if (assignment.EndedOn is not null)
+        {
+            throw InvalidAssignmentState("Solo una asignación activa puede cambiarse.");
+        }
+
+        if (input.EffectiveOn <= assignment.StartedOn)
+        {
+            throw InvalidDate("La fecha efectiva debe ser posterior al inicio de la asignación actual.");
+        }
+
+        if (input.BranchId == assignment.BranchId && input.JobPositionId == assignment.JobPositionId)
+        {
+            throw InvalidAssignmentState("Selecciona un cargo o una sucursal diferente.");
+        }
+
+        var relationship = await repository.FindRelationshipAsync(
+            organizationId,
+            employeeId,
+            assignment.EmploymentRelationshipId,
+            cancellationToken) ?? throw RelationshipNotFound();
+        if (relationship.EndedOn is not null)
+        {
+            throw InvalidRelationshipState("La relación laboral está finalizada.");
+        }
+
+        var branch = await FindActiveBranchAsync(organizationId, input.BranchId, cancellationToken);
+        var position = await FindPositionAsync(organizationId, input.JobPositionId, cancellationToken);
+        if (await repository.AssignmentPeriodOverlapsAsync(
+            organizationId,
+            relationship.Id,
+            branch.Id,
+            input.EffectiveOn,
+            null,
+            assignment.Id,
+            cancellationToken))
+        {
+            throw DuplicateAssignment();
+        }
+
+        await using var transaction = await repository.BeginTransactionAsync(cancellationToken);
+        var now = clock.UtcNow;
+        assignment.End(input.EffectiveOn.AddDays(-1), now);
+        await repository.SaveChangesAsync(cancellationToken);
+        repository.AddAssignment(EmployeeAssignment.Create(
+            organizationId,
+            relationship.Id,
+            branch.Id,
+            position.Id,
+            assignment.IsPrimary,
+            input.EffectiveOn,
+            now));
+        branchRepository.AddAuditEvent(CreateAudit("EMPLOYEE_ASSIGNMENT_TRANSITIONED", actor, organizationId, null, client, now, branch.Id));
+        await repository.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return await GetAsync(employeeId, actor, cancellationToken);
+    }
+
+    public async Task<EmployeeDetailResult> MakePrimaryAssignmentAsync(
+        Guid employeeId,
+        Guid assignmentId,
+        CurrentAccount actor,
+        ClientContext client,
+        CancellationToken cancellationToken)
+    {
+        var organizationId = EnsureSuperAdministrator(actor);
+        var assignment = await repository.FindAssignmentAsync(organizationId, employeeId, assignmentId, cancellationToken)
+            ?? throw AssignmentNotFound();
+        if (assignment.EndedOn is not null || assignment.IsPrimary)
+        {
+            throw InvalidAssignmentState(assignment.IsPrimary
+                ? "La asignación ya es la principal."
+                : "Solo una asignación activa puede marcarse como principal.");
+        }
+
+        await using var transaction = await repository.BeginTransactionAsync(cancellationToken);
+        var now = clock.UtcNow;
+        var activeAssignments = await repository.FindActiveAssignmentsAsync(
+            organizationId,
+            assignment.EmploymentRelationshipId,
+            cancellationToken);
+        foreach (var current in activeAssignments.Where(item => item.IsPrimary))
+        {
+            current.SetPrimary(false, now);
+        }
+
+        await repository.SaveChangesAsync(cancellationToken);
+        assignment.SetPrimary(true, now);
+        branchRepository.AddAuditEvent(CreateAudit("EMPLOYEE_PRIMARY_ASSIGNMENT_CHANGED", actor, organizationId, null, client, now, assignment.BranchId));
+        await repository.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return await GetAsync(employeeId, actor, cancellationToken);
+    }
+
+    private async Task<JobPositionResult> ChangePositionStatusAsync(
+        Guid id,
+        bool deactivate,
+        CurrentAccount actor,
+        CancellationToken cancellationToken)
+    {
+        var organizationId = EnsureSuperAdministrator(actor);
+        var position = await repository.FindJobPositionAsync(organizationId, id, cancellationToken)
+            ?? throw PositionNotFound();
+        var changed = deactivate ? position.Deactivate(clock.UtcNow) : position.Reactivate(clock.UtcNow);
+        if (!changed)
+        {
+            throw new EmployeeException(
+                EmployeeErrorCodes.JobPositionInvalidStatus,
+                deactivate ? "El cargo ya está inactivo." : "El cargo ya está activo.",
+                EmployeeErrorKind.Conflict);
+        }
+
         await repository.SaveChangesAsync(cancellationToken);
         return ToPositionResult(position);
     }
@@ -362,12 +631,48 @@ public sealed class EmployeeService(
             item.Employee.LastName,
             item.Assignments.Select(assignment => new EmployeeAssignmentResult(
                 assignment.Assignment.Id,
+                assignment.Assignment.EmploymentRelationshipId,
                 assignment.Branch.Id,
                 assignment.Branch.Name,
                 assignment.JobPosition.Id,
                 assignment.JobPosition.Name,
                 assignment.Assignment.IsPrimary,
-                assignment.Assignment.StartedOn)).ToArray(),
+                assignment.Assignment.StartedOn,
+                assignment.Assignment.EndedOn,
+                assignment.Assignment.EndedOn is null ? "ACTIVE" : "ENDED")).ToArray(),
+            item.Account is null ? null : new EmployeeAdministrativeAccessResult(
+                item.Account.Id,
+                item.Account.Email,
+                item.Account.Status == AccountStatus.Active ? "ACTIVE" : "SUSPENDED",
+                tenantInvitations.GetPublicStatus(item.Account, item.Invitation, clock.UtcNow),
+                item.Invitation?.ExpiresAt,
+                item.AdministrativeBranchIds),
+            item.Employee.CreatedAt,
+            item.Employee.UpdatedAt);
+
+    private EmployeeDetailResult ToDetailResult(EmployeeDetailQueryItem item) =>
+        new(
+            item.Employee.Id,
+            item.Employee.DocumentType,
+            item.Employee.DocumentNumber,
+            item.Employee.FirstName,
+            item.Employee.LastName,
+            item.Relationships.Select(relationship => new EmploymentRelationshipResult(
+                relationship.Relationship.Id,
+                relationship.Relationship.StartedOn,
+                relationship.Relationship.EndedOn,
+                relationship.Relationship.EndedOn is null ? "ACTIVE" : "ENDED",
+                relationship.Assignments.Select(assignment => new EmployeeAssignmentResult(
+                    assignment.Assignment.Id,
+                    assignment.Assignment.EmploymentRelationshipId,
+                    assignment.Branch.Id,
+                    assignment.Branch.Name,
+                    assignment.JobPosition.Id,
+                    assignment.JobPosition.Name,
+                    assignment.Assignment.IsPrimary,
+                    assignment.Assignment.StartedOn,
+                    assignment.Assignment.EndedOn,
+                    assignment.Assignment.EndedOn is null ? "ACTIVE" : "ENDED")).ToArray())).ToArray(),
             item.Account is null ? null : new EmployeeAdministrativeAccessResult(
                 item.Account.Id,
                 item.Account.Email,
@@ -380,6 +685,21 @@ public sealed class EmployeeService(
 
     private static JobPositionResult ToPositionResult(JobPosition position) =>
         new(position.Id, position.Name, position.Status == JobPositionStatus.Active ? "ACTIVE" : "INACTIVE");
+
+    private static JobPositionStatus? ParsePositionStatus(string? value) => value?.Trim().ToUpperInvariant() switch
+    {
+        null or "" or "ACTIVE" => JobPositionStatus.Active,
+        "INACTIVE" => JobPositionStatus.Inactive,
+        "ALL" => null,
+        _ => throw new EmployeeException(EmployeeErrorCodes.InvalidData, "El estado del cargo no es válido.")
+    };
+
+    private static (string Name, string NormalizedName) CleanPositionName(string? value)
+    {
+        var name = string.Join(' ', CleanRequired(value, 150, "nombre del cargo")
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        return (name, name.ToUpperInvariant());
+    }
 
     private (string DocumentType, string DocumentNumber, string FirstName, string LastName) ValidateIdentity(
         string documentType,
@@ -448,11 +768,44 @@ public sealed class EmployeeService(
         }
     }
 
+    private void ValidateOperationalDate(DateOnly value, string field)
+    {
+        var today = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
+        if (value == default || value > today)
+        {
+            throw InvalidDate($"La {field} no puede ser futura.");
+        }
+    }
+
     private static EmployeeException EmployeeNotFound() =>
         new(EmployeeErrorCodes.NotFound, "El trabajador no existe.", EmployeeErrorKind.NotFound);
 
     private static EmployeeException DuplicateDocument() =>
         new(EmployeeErrorCodes.DuplicateDocument, "Ya existe un trabajador con ese tipo y número de documento.", EmployeeErrorKind.Conflict);
+
+    private static EmployeeException DuplicateAssignment() =>
+        new(EmployeeErrorCodes.DuplicateAssignment, "La asignación se superpone con otro periodo de la misma sucursal.", EmployeeErrorKind.Conflict);
+
+    private static EmployeeException DuplicatePosition() =>
+        new(EmployeeErrorCodes.JobPositionDuplicateName, "Ya existe un cargo con ese nombre.", EmployeeErrorKind.Conflict);
+
+    private static EmployeeException PositionNotFound() =>
+        new(EmployeeErrorCodes.JobPositionNotFound, "El cargo no existe.", EmployeeErrorKind.NotFound);
+
+    private static EmployeeException RelationshipNotFound() =>
+        new(EmployeeErrorCodes.RelationshipNotFound, "La relación laboral no existe.", EmployeeErrorKind.NotFound);
+
+    private static EmployeeException AssignmentNotFound() =>
+        new(EmployeeErrorCodes.AssignmentNotFound, "La asignación no existe.", EmployeeErrorKind.NotFound);
+
+    private static EmployeeException InvalidRelationshipState(string message) =>
+        new(EmployeeErrorCodes.RelationshipInvalidState, message, EmployeeErrorKind.Conflict);
+
+    private static EmployeeException InvalidAssignmentState(string message) =>
+        new(EmployeeErrorCodes.AssignmentInvalidState, message, EmployeeErrorKind.Conflict);
+
+    private static EmployeeException InvalidDate(string message) =>
+        new(EmployeeErrorCodes.InvalidDate, message);
 
     private static SecurityAuditEvent CreateAudit(
         string eventType,

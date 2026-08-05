@@ -11,6 +11,8 @@ import PlatformOrganizationsPage from '../pages/PlatformOrganizationsPage.vue'
 import OrganizationFormPage from '../pages/OrganizationFormPage.vue'
 import TenantBranchesPage from '../pages/TenantBranchesPage.vue'
 import TenantBranchFormPage from '../pages/TenantBranchFormPage.vue'
+import JobPositionsPage from '../pages/JobPositionsPage.vue'
+import EmployeeDetailPage from '../pages/EmployeeDetailPage.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -94,6 +96,18 @@ export const router = createRouter({
       name: 'tenant-branch-detail',
       component: TenantBranchFormPage,
       meta: { accountType: 'TENANT' },
+    },
+    {
+      path: '/app/job-positions',
+      name: 'tenant-job-positions',
+      component: JobPositionsPage,
+      meta: { accountType: 'TENANT', roles: ['SUPER_ADMIN'] },
+    },
+    {
+      path: '/app/employees/:id',
+      name: 'tenant-employee-detail',
+      component: EmployeeDetailPage,
+      meta: { accountType: 'TENANT', roles: ['SUPER_ADMIN'] },
     },
     {
       path: '/:pathMatch(.*)*',

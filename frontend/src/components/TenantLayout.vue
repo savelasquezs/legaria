@@ -6,9 +6,12 @@ import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
 const roleLabel = computed(() => auth.account?.roles.includes('SUPER_ADMIN') ? 'Superadministrador' : 'Administrador de sucursal')
-const navigation: NavigationItem[] = [
+const navigation = computed<NavigationItem[]>(() => [
   { label: 'Sucursales', icon: icons.storefront, to: '/app/branches' },
-]
+  ...(auth.account?.roles.includes('SUPER_ADMIN')
+    ? [{ label: 'Cargos', icon: icons.groups, to: '/app/job-positions' }]
+    : []),
+])
 </script>
 
 <template>

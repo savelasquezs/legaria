@@ -32,11 +32,11 @@ public sealed class EmployeesController(
             cancellationToken));
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<EmployeeResult>> GetById(Guid id, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<EmployeeDetailResult>> GetById(Guid id, CancellationToken cancellationToken) =>
         Ok(await employeeService.GetAsync(id, currentUser.ToCurrentAccount(), cancellationToken));
 
     [HttpPost("/api/tenant/branches/{branchId:guid}/employees")]
-    public async Task<ActionResult<EmployeeResult>> Create(
+    public async Task<ActionResult<EmployeeDetailResult>> Create(
         Guid branchId,
         CreateEmployeeInputModel input,
         CancellationToken cancellationToken)
@@ -51,7 +51,7 @@ public sealed class EmployeesController(
     }
 
     [HttpPost("/api/tenant/branches/{branchId:guid}/employees/{employeeId:guid}/assignments")]
-    public async Task<ActionResult<EmployeeResult>> Assign(
+    public async Task<ActionResult<EmployeeDetailResult>> Assign(
         Guid branchId,
         Guid employeeId,
         AssignEmployeeInputModel input,
@@ -65,13 +65,67 @@ public sealed class EmployeesController(
             cancellationToken));
 
     [HttpPost("{id:guid}/administrative-access")]
-    public async Task<ActionResult<EmployeeResult>> GrantAdministrativeAccess(
+    public async Task<ActionResult<EmployeeDetailResult>> GrantAdministrativeAccess(
         Guid id,
         AdministrativeAccessInputModel input,
         CancellationToken cancellationToken) =>
         Ok(await employeeService.GrantAdministrativeAccessAsync(
             id,
             input.ToRequest(),
+            currentUser.ToCurrentAccount(),
+            Client(),
+            cancellationToken));
+
+    [HttpPost("{employeeId:guid}/employment-relationships/{relationshipId:guid}/end")]
+    public async Task<ActionResult<EmployeeDetailResult>> EndRelationship(
+        Guid employeeId,
+        Guid relationshipId,
+        EndEmploymentRelationshipInputModel input,
+        CancellationToken cancellationToken) =>
+        Ok(await employeeService.EndRelationshipAsync(
+            employeeId,
+            relationshipId,
+            new EndEmploymentRelationshipInput(input.EndedOn),
+            currentUser.ToCurrentAccount(),
+            Client(),
+            cancellationToken));
+
+    [HttpPost("{employeeId:guid}/assignments/{assignmentId:guid}/end")]
+    public async Task<ActionResult<EmployeeDetailResult>> EndAssignment(
+        Guid employeeId,
+        Guid assignmentId,
+        EndEmployeeAssignmentInputModel input,
+        CancellationToken cancellationToken) =>
+        Ok(await employeeService.EndAssignmentAsync(
+            employeeId,
+            assignmentId,
+            new EndEmployeeAssignmentInput(input.EndedOn),
+            currentUser.ToCurrentAccount(),
+            Client(),
+            cancellationToken));
+
+    [HttpPost("{employeeId:guid}/assignments/{assignmentId:guid}/transition")]
+    public async Task<ActionResult<EmployeeDetailResult>> TransitionAssignment(
+        Guid employeeId,
+        Guid assignmentId,
+        TransitionEmployeeAssignmentInputModel input,
+        CancellationToken cancellationToken) =>
+        Ok(await employeeService.TransitionAssignmentAsync(
+            employeeId,
+            assignmentId,
+            new TransitionEmployeeAssignmentInput(input.BranchId, input.JobPositionId, input.EffectiveOn),
+            currentUser.ToCurrentAccount(),
+            Client(),
+            cancellationToken));
+
+    [HttpPost("{employeeId:guid}/assignments/{assignmentId:guid}/make-primary")]
+    public async Task<ActionResult<EmployeeDetailResult>> MakePrimaryAssignment(
+        Guid employeeId,
+        Guid assignmentId,
+        CancellationToken cancellationToken) =>
+        Ok(await employeeService.MakePrimaryAssignmentAsync(
+            employeeId,
+            assignmentId,
             currentUser.ToCurrentAccount(),
             Client(),
             cancellationToken));
@@ -91,8 +145,10 @@ public sealed class JobPositionsController(
     ICurrentUser currentUser) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyCollection<JobPositionResult>>> List(CancellationToken cancellationToken) =>
-        Ok(await employeeService.ListJobPositionsAsync(currentUser.ToCurrentAccount(), cancellationToken));
+    public async Task<ActionResult<IReadOnlyCollection<JobPositionResult>>> List(
+        [FromQuery] string? status = null,
+        CancellationToken cancellationToken = default) =>
+        Ok(await employeeService.ListJobPositionsAsync(status, currentUser.ToCurrentAccount(), cancellationToken));
 
     [HttpPost]
     public async Task<ActionResult<JobPositionResult>> Create(
@@ -105,6 +161,25 @@ public sealed class JobPositionsController(
             cancellationToken);
         return Created(string.Empty, result);
     }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<JobPositionResult>> Update(
+        Guid id,
+        JobPositionInputModel input,
+        CancellationToken cancellationToken) =>
+        Ok(await employeeService.UpdateJobPositionAsync(
+            id,
+            new JobPositionInput(input.Name),
+            currentUser.ToCurrentAccount(),
+            cancellationToken));
+
+    [HttpPost("{id:guid}/deactivate")]
+    public async Task<ActionResult<JobPositionResult>> Deactivate(Guid id, CancellationToken cancellationToken) =>
+        Ok(await employeeService.DeactivateJobPositionAsync(id, currentUser.ToCurrentAccount(), cancellationToken));
+
+    [HttpPost("{id:guid}/reactivate")]
+    public async Task<ActionResult<JobPositionResult>> Reactivate(Guid id, CancellationToken cancellationToken) =>
+        Ok(await employeeService.ReactivateJobPositionAsync(id, currentUser.ToCurrentAccount(), cancellationToken));
 }
 
 public sealed record AdministrativeAccessInputModel(
@@ -149,3 +224,12 @@ public sealed record AssignEmployeeInputModel(
 }
 
 public sealed record JobPositionInputModel([Required, MaxLength(150)] string Name);
+
+public sealed record EndEmploymentRelationshipInputModel([Required] DateOnly EndedOn);
+
+public sealed record EndEmployeeAssignmentInputModel([Required] DateOnly EndedOn);
+
+public sealed record TransitionEmployeeAssignmentInputModel(
+    [Required] Guid BranchId,
+    [Required] Guid JobPositionId,
+    [Required] DateOnly EffectiveOn);

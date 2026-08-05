@@ -4,6 +4,10 @@ import { listEmployees, listJobPositions } from '../services/employees'
 import { listBranches } from '../services/branches'
 import BranchEmployeesSection from './BranchEmployeesSection.vue'
 
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
 vi.mock('../services/employees', () => ({
   listEmployees: vi.fn(),
   listJobPositions: vi.fn(),

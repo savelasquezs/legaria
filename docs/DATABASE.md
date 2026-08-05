@@ -21,6 +21,8 @@ Vínculo laboral durante un periodo. Conserva fechas de inicio y terminación y 
 Asignación histórica de una relación laboral a una sucursal y cargo. Puede haber varias activas y solo una principal activa por relación laboral.
 
 ### JobPosition
+
+La base garantiza una sola `EmploymentRelationship` activa por trabajador y una sola `EmployeeAssignment` activa por relación y sucursal mediante índices parciales. `EmploymentLifecycleConstraints` agrega estas protecciones sin modificar el historial existente.
 Cargo activo o inactivo definido por la organización y reutilizable en sucursales. Su nombre normalizado es único dentro del tenant.
 
 ## Documentos

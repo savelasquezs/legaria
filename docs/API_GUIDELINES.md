@@ -134,6 +134,17 @@ El listado acepta `page` (1), `pageSize` (20, máximo 100), `search` y `status=A
 | `POST` | `/api/tenant/employees/{id}/administrative-access` | `SUPER_ADMIN` |
 | `GET` | `/api/tenant/job-positions` | `SUPER_ADMIN` |
 | `POST` | `/api/tenant/job-positions` | `SUPER_ADMIN` |
+| `PUT` | `/api/tenant/job-positions/{id}` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/job-positions/{id}/deactivate` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/job-positions/{id}/reactivate` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/employees/{employeeId}/employment-relationships/{relationshipId}/end` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/employees/{employeeId}/assignments/{assignmentId}/end` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/employees/{employeeId}/assignments/{assignmentId}/transition` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/employees/{employeeId}/assignments/{assignmentId}/make-primary` | `SUPER_ADMIN` |
+
+`GET /api/tenant/job-positions` acepta `status=ACTIVE|INACTIVE|ALL` y usa `ACTIVE` por defecto. El detalle del trabajador devuelve todas las relaciones y asignaciones con `employmentRelationshipId`, `startedOn`, `endedOn` y estado calculado `ACTIVE|ENDED`.
+
+Finalizar una relación cierra sus asignaciones activas y suspende la cuenta `BRANCH_ADMIN` vinculada dentro de la misma transacción. Una transición recibe `branchId`, `jobPositionId` y `effectiveOn`; cierra la asignación anterior el día previo y conserva si era principal.
 
 El listado admite búsqueda por nombre o documento, paginación, `branchId` y `excludeBranchId`. Crear recibe identidad, cargo, fecha de inicio y una sección opcional `administrativeAccess` con correo y sucursales. Cuando se solicita acceso, trabajador, vínculo laboral, asignación, cuenta vinculada, rol `BRANCH_ADMIN`, accesos, reserva de correo, invitación y auditoría se confirman juntos antes del envío.
 

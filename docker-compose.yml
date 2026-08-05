@@ -30,7 +30,6 @@ services:
     command:
       - database
       - update
-      - EmployeesEmploymentAndIntegratedBranchAdministration
       - --project
       - backend/src/Legaria.Infrastructure/Legaria.Infrastructure.csproj
       - --startup-project

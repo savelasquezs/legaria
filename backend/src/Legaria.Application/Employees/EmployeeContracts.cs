@@ -22,12 +22,22 @@ public sealed record AssignEmployeeInput(
 
 public sealed record EmployeeAssignmentResult(
     Guid Id,
+    Guid EmploymentRelationshipId,
     Guid BranchId,
     string BranchName,
     Guid JobPositionId,
     string JobPositionName,
     bool IsPrimary,
-    DateOnly StartedOn);
+    DateOnly StartedOn,
+    DateOnly? EndedOn,
+    string Status);
+
+public sealed record EmploymentRelationshipResult(
+    Guid Id,
+    DateOnly StartedOn,
+    DateOnly? EndedOn,
+    string Status,
+    IReadOnlyCollection<EmployeeAssignmentResult> Assignments);
 
 public sealed record EmployeeAdministrativeAccessResult(
     Guid AccountId,
@@ -48,6 +58,17 @@ public sealed record EmployeeResult(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
+public sealed record EmployeeDetailResult(
+    Guid Id,
+    string DocumentType,
+    string DocumentNumber,
+    string FirstName,
+    string LastName,
+    IReadOnlyCollection<EmploymentRelationshipResult> EmploymentRelationships,
+    EmployeeAdministrativeAccessResult? AdministrativeAccess,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
 public sealed record EmployeePage(
     IReadOnlyCollection<EmployeeResult> Items,
     int Page,
@@ -56,6 +77,15 @@ public sealed record EmployeePage(
     int TotalPages);
 
 public sealed record JobPositionInput(string Name);
+
+public sealed record EndEmploymentRelationshipInput(DateOnly EndedOn);
+
+public sealed record EndEmployeeAssignmentInput(DateOnly EndedOn);
+
+public sealed record TransitionEmployeeAssignmentInput(
+    Guid BranchId,
+    Guid JobPositionId,
+    DateOnly EffectiveOn);
 
 public sealed record JobPositionResult(
     Guid Id,
@@ -73,6 +103,13 @@ public static class EmployeeErrorCodes
     public const string DuplicateAccount = "employee.account_already_exists";
     public const string DuplicateEmail = "account.email_already_exists";
     public const string JobPositionDuplicateName = "job_position.duplicate_name";
+    public const string JobPositionNotFound = "job_position.not_found";
+    public const string JobPositionInvalidStatus = "job_position.invalid_status_transition";
+    public const string RelationshipNotFound = "employment_relationship.not_found";
+    public const string RelationshipInvalidState = "employment_relationship.invalid_state";
+    public const string AssignmentNotFound = "employee_assignment.not_found";
+    public const string AssignmentInvalidState = "employee_assignment.invalid_state";
+    public const string InvalidDate = "employment.invalid_date";
     public const string Forbidden = "employee.forbidden";
 }
 

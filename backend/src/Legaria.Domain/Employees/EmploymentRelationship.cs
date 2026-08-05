@@ -28,4 +28,16 @@ public sealed class EmploymentRelationship
             CreatedAt = now,
             UpdatedAt = now
         };
+
+    public bool End(DateOnly endedOn, DateTimeOffset now)
+    {
+        if (EndedOn is not null)
+        {
+            return false;
+        }
+
+        EndedOn = endedOn;
+        UpdatedAt = now;
+        return true;
+    }
 }

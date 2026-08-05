@@ -1,5 +1,7 @@
 # Seguridad
 
+Finalizar la relación laboral de un `BRANCH_ADMIN` suspende su cuenta, rota el `security_stamp` y revoca sesiones e invitaciones pendientes; las concesiones por sucursal se conservan como historial.
+
 ## Objetivo
 
 Priorizar aislamiento multitenant, protección de sesiones y autorización sobre recursos. La seguridad no puede depender del frontend.

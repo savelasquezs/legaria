@@ -142,6 +142,12 @@ Este archivo documenta decisiones duraderas. Agregar una entrada cuando cambie a
 
 **Consecuencia:** un trabajador puede tener varias asignaciones activas, pero solo una principal activa por relación laboral. Las claves foráneas compuestas impiden referencias cruzadas entre organizaciones.
 
+## 2026-08-05 — Ciclo laboral sin solapamientos
+
+**Decisión:** las fechas laborales no pueden ser futuras; una transición termina el periodo anterior el día previo y una relación finalizada cierra sus asignaciones activas.
+
+**Consecuencia:** una recontratación crea otra relación. Si existe una cuenta `BRANCH_ADMIN`, el retiro la suspende y revoca sesiones e invitaciones sin borrar accesos históricos ni reactivarla automáticamente al recontratar.
+
 ## Pendientes deliberados
 
 Estas decisiones no están cerradas y no deben inventarse:

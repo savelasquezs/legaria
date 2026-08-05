@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import AppAlert from './AppAlert.vue'
+import AssignmentFields from './AssignmentFields.vue'
 import AppDataTable from './AppDataTable.vue'
 import AppDialog from './AppDialog.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
@@ -27,6 +29,7 @@ import type { Employee, EmployeePage, JobPosition } from '../types/employees'
 import type { Branch } from '../types/branches'
 
 const props = defineProps<{ branchId: string; branchActive: boolean }>()
+const router = useRouter()
 
 const emptyPage = (): EmployeePage => ({ items: [], page: 1, pageSize: 10, totalItems: 0, totalPages: 0 })
 const result = ref<EmployeePage>(emptyPage())
@@ -306,7 +309,7 @@ onMounted(load)
       <AppAlert v-if="errorMessage" tone="danger">{{ errorMessage }}</AppAlert>
       <SearchField v-model="search" label="Buscar trabajadores" placeholder="Nombre o documento" :loading="loading" class="workers-search" @update:model-value="load" />
       <AppDataTable :rows="result.items" :columns="columns" :loading="loading" :page="result.page" :total-pages="result.totalPages" empty-title="No hay trabajadores asignados" empty-description="Asigna un trabajador existente o crea uno nuevo." @update:page="result.page = $event; load()">
-        <template #body-cell-employee="rowProps"><q-td :props="rowProps"><strong>{{ rowProps.row.firstName }} {{ rowProps.row.lastName }}</strong></q-td></template>
+        <template #body-cell-employee="rowProps"><q-td :props="rowProps"><q-btn flat no-caps color="primary" class="employee-link" :label="`${rowProps.row.firstName} ${rowProps.row.lastName}`" @click="router.push({ name: 'tenant-employee-detail', params: { id: rowProps.row.id }, query: { branchId: props.branchId } })" /></q-td></template>
         <template #body-cell-document="rowProps"><q-td :props="rowProps">{{ rowProps.row.documentType }} {{ rowProps.row.documentNumber }}</q-td></template>
         <template #body-cell-position="rowProps"><q-td :props="rowProps">{{ assignmentForBranch(rowProps.row)?.jobPositionName }}</q-td></template>
         <template #body-cell-access="rowProps"><q-td :props="rowProps"><div class="access-actions"><StatusChip :tone="rowProps.row.administrativeAccess ? 'info' : 'neutral'" :label="invitationLabel(rowProps.row)" /><q-btn flat round dense :icon="rowProps.row.administrativeAccess ? icons.tune : icons.personAdd" :aria-label="rowProps.row.administrativeAccess ? 'Configurar sucursales' : 'Crear acceso administrativo'" @click="openAccess(rowProps.row)"><q-tooltip>{{ rowProps.row.administrativeAccess ? 'Configurar sucursales' : 'Crear acceso administrativo' }}</q-tooltip></q-btn><q-btn v-if="rowProps.row.administrativeAccess && rowProps.row.administrativeAccess.invitationStatus !== 'ACCEPTED' && rowProps.row.administrativeAccess.accountStatus === 'ACTIVE'" flat round dense :icon="icons.forwardToInbox" aria-label="Reenviar invitación" @click="resend(rowProps.row)"><q-tooltip>Reenviar invitación</q-tooltip></q-btn><q-btn v-if="rowProps.row.administrativeAccess" flat round dense :icon="rowProps.row.administrativeAccess.accountStatus === 'ACTIVE' ? icons.block : icons.check" :aria-label="rowProps.row.administrativeAccess.accountStatus === 'ACTIVE' ? 'Suspender cuenta' : 'Reactivar cuenta'" @click="requestAccountStatusChange(rowProps.row)"><q-tooltip>{{ rowProps.row.administrativeAccess.accountStatus === 'ACTIVE' ? 'Suspender cuenta' : 'Reactivar cuenta' }}</q-tooltip></q-btn></div></q-td></template>
@@ -333,10 +336,7 @@ onMounted(load)
         <q-input v-model="form.firstName" outlined label="Nombres" :rules="[requiredRule]" />
         <q-input v-model="form.lastName" outlined label="Apellidos" :rules="[requiredRule]" />
       </div>
-      <div v-if="mode !== 'access'" class="fields-grid q-mt-md">
-        <q-select v-model="form.jobPositionId" outlined emit-value map-options option-value="id" option-label="name" :options="positions" label="Cargo" :rules="[requiredRule]" />
-        <q-input v-model="form.startedOn" outlined type="date" label="Fecha de inicio" :rules="[requiredRule]" />
-      </div>
+      <AssignmentFields v-if="mode !== 'access'" v-model:job-position-id="form.jobPositionId" v-model:started-on="form.startedOn" :positions="positions" :max-date="today" :show-primary="false" class="q-mt-md" />
       <div v-if="mode !== 'access'" class="inline-position"><q-input v-model="newPositionName" outlined dense label="Crear otro cargo" /><q-btn outline no-caps color="primary" label="Agregar cargo" :loading="creatingPosition" @click="addPosition" /></div>
       <q-checkbox v-if="mode !== 'access'" v-model="form.isPrimary" label="Asignación principal" />
       <q-separator v-if="mode !== 'access'" class="q-my-md" />

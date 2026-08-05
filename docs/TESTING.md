@@ -13,6 +13,8 @@ Después de cada cambio importante, crear o actualizar pruebas y ejecutar compil
 
 ## Backend
 
+Los ciclos laborales deben cubrir transiciones y cierres sin solapamiento, aislamiento tenant y el retiro de un administrador con suspensión y revocación de acceso.
+
 ### Unitarias
 
 Cubrir:

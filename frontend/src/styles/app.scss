@@ -539,6 +539,58 @@ h3 {
   margin-bottom: var(--space-2);
 }
 
+.employee-link {
+  margin-left: calc(var(--space-1) * -1);
+  font-weight: 700;
+}
+
+.employment-summary {
+  margin-bottom: var(--space-3);
+}
+
+.employment-period {
+  margin-bottom: var(--space-3);
+}
+
+.employment-period__header,
+.assignment-card__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.employment-period__header {
+  margin-bottom: var(--space-2);
+}
+
+.employment-period__header h2,
+.employment-period__header p,
+.assignment-card p {
+  margin: 0;
+}
+
+.employment-period__header p,
+.assignment-card p,
+.assignment-card__heading span {
+  color: var(--color-text-secondary);
+}
+
+.assignment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.assignment-card__heading > div {
+  display: grid;
+  gap: var(--space-0-5);
+}
+
+.assignment-card .q-card__actions {
+  border-top: 1px solid var(--color-border);
+}
+
 .candidate-list {
   display: grid;
   gap: var(--space-1);
@@ -675,5 +727,9 @@ h3 {
   .selected-employee {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .assignment-grid {
+    grid-template-columns: 1fr;
   }
 }

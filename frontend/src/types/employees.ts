@@ -1,11 +1,22 @@
 export interface EmployeeAssignment {
   id: string
+  employmentRelationshipId: string
   branchId: string
   branchName: string
   jobPositionId: string
   jobPositionName: string
   isPrimary: boolean
   startedOn: string
+  endedOn: string | null
+  status: 'ACTIVE' | 'ENDED'
+}
+
+export interface EmploymentRelationship {
+  id: string
+  startedOn: string
+  endedOn: string | null
+  status: 'ACTIVE' | 'ENDED'
+  assignments: EmployeeAssignment[]
 }
 
 export interface EmployeeAdministrativeAccess {
@@ -27,6 +38,10 @@ export interface Employee {
   administrativeAccess: EmployeeAdministrativeAccess | null
   createdAt: string
   updatedAt: string
+}
+
+export interface EmployeeDetail extends Omit<Employee, 'assignments'> {
+  employmentRelationships: EmploymentRelationship[]
 }
 
 export interface EmployeePage {
@@ -64,4 +79,10 @@ export interface JobPosition {
   id: string
   name: string
   status: 'ACTIVE' | 'INACTIVE'
+}
+
+export interface TransitionAssignmentData {
+  branchId: string
+  jobPositionId: string
+  effectiveOn: string
 }

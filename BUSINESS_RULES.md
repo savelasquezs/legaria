@@ -95,12 +95,21 @@ Reglas:
 7. Crear un trabajador desde una sucursal crea su primera relación laboral y asignación activa; asignarlo después a otra sucursal reutiliza la relación activa.
 8. Solo puede existir una cuenta tenant vinculada a un mismo trabajador.
 
+9. No se permiten relaciones laborales ni asignaciones con fecha de inicio futura.
+10. Finalizar una relación laboral cierra todas sus asignaciones activas en la misma fecha.
+11. Si el trabajador tiene una cuenta `BRANCH_ADMIN` activa, finalizar la relación la suspende y revoca sus sesiones e invitaciones; los accesos por sucursal permanecen como historial.
+12. Una recontratación no reactiva automáticamente una cuenta suspendida.
+13. Una transición de cargo o sucursal termina la asignación anterior el día previo a la fecha efectiva y no permite periodos solapados en la misma sucursal.
+
 ## Cargos
 
 1. Los cargos pertenecen a la organización.
 2. Un cargo puede utilizarse en varias sucursales.
 3. Los cargos con historial no se eliminan; se desactivan.
 4. Los nombres de cargos deben ser únicos dentro de la organización, salvo decisión posterior.
+
+5. Un cargo inactivo conserva su historial y no puede utilizarse en asignaciones nuevas.
+6. Renombrar un cargo corrige el nombre del catálogo y no crea una asignación nueva.
 
 ## Documentos del trabajador
 

@@ -7,12 +7,14 @@ clon limpio, consultar
 Este entorno levanta exclusivamente los servicios de Legaria:
 
 - PostgreSQL 16 en `localhost:5434`, con volumen persistente.
-- Una tarea `migrate` que aplica hasta `EmployeesEmploymentAndIntegratedBranchAdministration` y termina.
+- Una tarea `migrate` que aplica todas las migraciones pendientes y termina.
 - La API .NET 8 en `https://localhost:7007`, ejecutada como usuario no root.
 
 El frontend continúa ejecutándose fuera de Docker.
 
 ## Primer arranque
+
+La API no aplica migraciones. Antes del bootstrap verifica que el esquema esté actualizado y falla con un mensaje explícito si la tarea `migrate` no aplicó la última migración.
 
 1. Copiar `.env.example` como `.env`.
 2. Completar `POSTGRES_PASSWORD`, `BOOTSTRAP_OWNER_EMAIL` y
