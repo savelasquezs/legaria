@@ -20,6 +20,8 @@ public sealed class LegariaDbContext(DbContextOptions<LegariaDbContext> options)
     public DbSet<EmployeeAssignment> EmployeeAssignments => Set<EmployeeAssignment>();
     public DbSet<DocumentCategory> DocumentCategories => Set<DocumentCategory>();
     public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
+    public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
+    public DbSet<EmployeeDocumentEvidence> EmployeeDocumentEvidences => Set<EmployeeDocumentEvidence>();
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
     public DbSet<AccountEmail> AccountEmails => Set<AccountEmail>();
     public DbSet<SystemRole> SystemRoles => Set<SystemRole>();

@@ -303,6 +303,45 @@ internal sealed class DocumentTypeConfiguration : IEntityTypeConfiguration<Docum
     }
 }
 
+internal sealed class EmployeeDocumentConfiguration : IEntityTypeConfiguration<EmployeeDocument>
+{
+    public void Configure(EntityTypeBuilder<EmployeeDocument> builder)
+    {
+        builder.ToTable("employee_documents", table => table.HasCheckConstraint(
+            "ck_employee_documents_dates", "expires_on IS NULL OR issued_on IS NULL OR expires_on >= issued_on"));
+        builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.OrganizationId, x.Id });
+        builder.HasIndex(x => new { x.OrganizationId, x.EmployeeId, x.DocumentTypeId, x.ReplacedAt });
+        builder.HasOne<Employee>().WithMany().HasForeignKey(x => new { x.OrganizationId, x.EmployeeId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<DocumentType>().WithMany().HasForeignKey(x => new { x.OrganizationId, x.DocumentTypeId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<UserAccount>().WithMany().HasForeignKey(x => new { x.OrganizationId, Id = x.UploadedByUserId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class EmployeeDocumentEvidenceConfiguration : IEntityTypeConfiguration<EmployeeDocumentEvidence>
+{
+    public void Configure(EntityTypeBuilder<EmployeeDocumentEvidence> builder)
+    {
+        builder.ToTable("employee_document_evidences", table =>
+        {
+            table.HasCheckConstraint("ck_employee_document_evidences_kind", "kind IN ('PDF', 'IMAGE', 'VIDEO', 'LINK')");
+            table.HasCheckConstraint("ck_employee_document_evidences_payload", "(kind = 'LINK' AND url IS NOT NULL AND storage_key IS NULL) OR (kind <> 'LINK' AND url IS NULL AND storage_key IS NOT NULL)");
+        });
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Kind).HasMaxLength(10).IsRequired();
+        builder.Property(x => x.StorageKey).HasMaxLength(500);
+        builder.Property(x => x.OriginalFileName).HasMaxLength(255);
+        builder.Property(x => x.ContentType).HasMaxLength(100);
+        builder.Property(x => x.Url).HasMaxLength(2048);
+        builder.HasIndex(x => new { x.OrganizationId, x.EmployeeDocumentId });
+        builder.HasOne<EmployeeDocument>().WithMany().HasForeignKey(x => new { x.OrganizationId, x.EmployeeDocumentId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 internal sealed class UserAccountConfiguration : IEntityTypeConfiguration<UserAccount>
 {
     public void Configure(EntityTypeBuilder<UserAccount> builder)

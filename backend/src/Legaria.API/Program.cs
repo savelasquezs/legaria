@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Legaria.API.Middleware;
 using Legaria.API.Security;
+using Legaria.API.Hosting;
 using Legaria.Application.Authentication;
 using Legaria.Application.Branches;
 using Legaria.Application.Configuration;
@@ -15,6 +16,8 @@ using Legaria.Domain.Authentication;
 using Legaria.Infrastructure.Authentication;
 using Legaria.Infrastructure.Email;
 using Legaria.Infrastructure.Persistence;
+using Legaria.Infrastructure.Storage;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +26,8 @@ using Npgsql;
 using Resend;
 
 var builder = WebApplication.CreateBuilder(args);
+
+GoogleCredentialBootstrap.Apply(builder.Configuration);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -97,6 +102,14 @@ builder.Services.AddSingleton(resendOptions);
 builder.Services.AddSingleton(frontendOptions);
 builder.Services.AddSingleton(bootstrapOptions);
 builder.Services.AddSingleton(authenticationOptions);
+builder.Services.Configure<FirebaseStorageOptions>(options =>
+{
+    options.Bucket = builder.Configuration["FIREBASE_STORAGE_BUCKET"]
+        ?? builder.Configuration["FirebaseStorage:Bucket"]
+        ?? string.Empty;
+    options.Prefix = builder.Configuration["FirebaseStorage:Prefix"] ?? "employee-documents";
+    options.GoogleApplicationCredentialsPath = builder.Configuration["FirebaseStorage:GoogleApplicationCredentialsPath"];
+});
 
 builder.Services.AddDbContext<LegariaDbContext>(options =>
     options
@@ -121,12 +134,15 @@ builder.Services.AddScoped<ITenantInvitationRepository, TenantInvitationReposito
 builder.Services.AddScoped<IBranchRepository, BranchRepository>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<IDocumentCatalogRepository, DocumentCatalogRepository>();
+builder.Services.AddScoped<IEmployeeDocumentRepository, EmployeeDocumentRepository>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<ITenantInvitationService, TenantInvitationService>();
 builder.Services.AddScoped<IBranchService, BranchService>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddScoped<IDocumentCatalogService, DocumentCatalogService>();
+builder.Services.AddScoped<IEmployeeDocumentService, EmployeeDocumentService>();
+builder.Services.AddSingleton<IEmployeeDocumentStorage, FirebaseEmployeeDocumentStorage>();
 builder.Services.AddScoped<IPlatformOwnerBootstrapper, PlatformOwnerBootstrapper>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();

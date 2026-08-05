@@ -21,6 +21,7 @@
 - **CaseComment:** comentario administrativo asociado al expediente.
 - **CaseDocument:** archivo adjunto a un expediente.
 - **EmployeeDocument:** documento propio del trabajador.
+- **EmployeeDocumentEvidence:** archivo privado o enlace que sustenta una versión documental.
 - **RefreshSession:** sesión persistente representada por un refresh token hasheado.
 - **AccountToken:** token de verificación o restablecimiento almacenado únicamente como hash.
 - **SecurityAuditEvent:** registro persistente de un evento de seguridad sin correo, token ni secreto.

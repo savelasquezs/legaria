@@ -112,6 +112,8 @@ Toda consulta y modificación incluye el tenant autenticado. Pruebas obligatoria
 - No confiar en extensión.
 - URLs firmadas de corta duración o streaming autorizado.
 - No exponer rutas internas.
+- Las evidencias laborales usan Firebase Storage privado sin ACL pública ni token permanente; la descarga se transmite únicamente después de autorizar tenant, trabajador y restricción de autoexpediente.
+- La API valida firma, tamaño y tipo permitido antes de persistir la versión documental.
 
 ## Logs
 

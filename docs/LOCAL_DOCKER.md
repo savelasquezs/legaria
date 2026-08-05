@@ -61,6 +61,10 @@ docker compose down
 La API depende de que PostgreSQL esté saludable y de que `migrate` termine con
 código cero. La API no aplica migraciones por sí misma.
 
+## Firebase Storage
+
+Configurar `FIREBASE_STORAGE_BUCKET` en `.env`. Por defecto Docker monta `../firebase_secret.json` como credencial privada; otra ubicación puede indicarse mediante `FIREBASE_CREDENTIALS_PATH`. El JSON nunca debe copiarse ni confirmarse dentro de Legaria.
+
 ## Acceso a PostgreSQL
 
 Con un cliente instalado en el host:

@@ -65,6 +65,16 @@ public sealed class AuthExceptionHandlerMiddleware(
             };
             await WriteProblemAsync(context, status, exception.Code, exception.Message);
         }
+        catch (EmployeeDocumentException exception)
+        {
+            var status = exception.Kind switch
+            {
+                EmployeeDocumentErrorKind.NotFound => StatusCodes.Status404NotFound,
+                EmployeeDocumentErrorKind.Forbidden => StatusCodes.Status403Forbidden,
+                _ => StatusCodes.Status400BadRequest
+            };
+            await WriteProblemAsync(context, status, exception.Code, exception.Message);
+        }
         catch (InvalidOperationException exception)
         {
             logger.LogError(exception, "La aplicación encontró una configuración o estado inválido.");

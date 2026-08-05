@@ -804,6 +804,129 @@ namespace Legaria.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Legaria.Domain.Documents.EmployeeDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("DocumentTypeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_type_id");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<DateOnly?>("ExpiresOn")
+                        .HasColumnType("date")
+                        .HasColumnName("expires_on");
+
+                    b.Property<DateOnly?>("IssuedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("issued_on");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<DateTimeOffset?>("ReplacedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("replaced_at");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("uploaded_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_employee_documents");
+
+                    b.HasAlternateKey("OrganizationId", "Id")
+                        .HasName("ak_employee_documents_organization_id_id");
+
+                    b.HasIndex("OrganizationId", "DocumentTypeId")
+                        .HasDatabaseName("ix_employee_documents_organization_id_document_type_id");
+
+                    b.HasIndex("OrganizationId", "UploadedByUserId")
+                        .HasDatabaseName("ix_employee_documents_organization_id_uploaded_by_user_id");
+
+                    b.HasIndex("OrganizationId", "EmployeeId", "DocumentTypeId", "ReplacedAt")
+                        .HasDatabaseName("ix_employee_documents_organization_id_employee_id_document_typ");
+
+                    b.ToTable("employee_documents", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_employee_documents_dates", "expires_on IS NULL OR issued_on IS NULL OR expires_on >= issued_on");
+                        });
+                });
+
+            modelBuilder.Entity("Legaria.Domain.Documents.EmployeeDocumentEvidence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("EmployeeDocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_document_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("OriginalFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("original_file_name");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("StorageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("storage_key");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("url");
+
+                    b.HasKey("Id")
+                        .HasName("pk_employee_document_evidences");
+
+                    b.HasIndex("OrganizationId", "EmployeeDocumentId")
+                        .HasDatabaseName("ix_employee_document_evidences_organization_id_employee_docume");
+
+                    b.ToTable("employee_document_evidences", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_employee_document_evidences_kind", "kind IN ('PDF', 'IMAGE', 'VIDEO', 'LINK')");
+
+                            t.HasCheckConstraint("ck_employee_document_evidences_payload", "(kind = 'LINK' AND url IS NOT NULL AND storage_key IS NULL) OR (kind <> 'LINK' AND url IS NULL AND storage_key IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("Legaria.Domain.Employees.Employee", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1447,6 +1570,44 @@ namespace Legaria.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_document_types_document_categories_organization_id_category");
+                });
+
+            modelBuilder.Entity("Legaria.Domain.Documents.EmployeeDocument", b =>
+                {
+                    b.HasOne("Legaria.Domain.Documents.DocumentType", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "DocumentTypeId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_employee_documents_document_types_organization_id_document_");
+
+                    b.HasOne("Legaria.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "EmployeeId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_employee_documents_employees_organization_id_employee_id");
+
+                    b.HasOne("Legaria.Domain.Authentication.UserAccount", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "UploadedByUserId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_employee_documents_user_accounts_organization_id_uploaded_b");
+                });
+
+            modelBuilder.Entity("Legaria.Domain.Documents.EmployeeDocumentEvidence", b =>
+                {
+                    b.HasOne("Legaria.Domain.Documents.EmployeeDocument", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "EmployeeDocumentId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_employee_document_evidences_employee_documents_organization");
                 });
 
             modelBuilder.Entity("Legaria.Domain.Employees.Employee", b =>

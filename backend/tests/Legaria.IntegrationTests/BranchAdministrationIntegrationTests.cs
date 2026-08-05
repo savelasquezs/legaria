@@ -1,6 +1,7 @@
 using Legaria.Application.Authentication;
 using Legaria.Application.Branches;
 using Legaria.Application.Configuration;
+using Legaria.Application.Documents;
 using Legaria.Application.Employees;
 using Legaria.Application.Organizations;
 using Legaria.Domain.Authentication;
@@ -487,6 +488,42 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
     }
 
     [Fact]
+    public async Task EmployeeDocumentSummaryCombinesPositionRequirementsAndUpcomingExpirations()
+    {
+        await fixture.ResetAsync();
+        await using var context = fixture.CreateDbContext();
+        var services = await CreateServicesAsync(context);
+        var organizationId = services.SuperActor.OrganizationId!.Value;
+        var now = new DateTimeOffset(2026, 8, 4, 20, 0, 0, TimeSpan.Zero);
+        var category = DocumentCategory.Create(organizationId, "Licencias", "LICENCIAS", null, DocumentScope.Employee, now);
+        var documentType = DocumentType.Create(organizationId, category.Id, "Licencia", "LICENCIA", null, false,
+            DocumentDateMode.Optional, DocumentDateMode.Required, false, false, [DocumentEvidenceKinds.Pdf], now);
+        context.AddRange(category, documentType, JobPositionDocumentRequirement.Create(organizationId, services.PositionId, documentType.Id));
+        await context.SaveChangesAsync();
+        var branch = await services.Branches.CreateBranchAsync(BranchInput("Centro"), services.SuperActor, Client(), CancellationToken.None);
+        var employee = await services.Employees.CreateAsync(branch.Id,
+            new CreateEmployeeInput("CC", "1030999999", "Laura", "Documentada", services.PositionId, new DateOnly(2026, 8, 4), true, null),
+            services.SuperActor, Client(), CancellationToken.None);
+        var storage = new MemoryDocumentStorage();
+        var documentService = new EmployeeDocumentService(
+            new EmployeeDocumentRepository(context), new EmployeeRepository(context), new BranchRepository(context), storage, new FixedClock(now));
+
+        var missing = await documentService.GetSummaryAsync(employee.Id, services.SuperActor, CancellationToken.None);
+        Assert.Equal(1, missing.MissingCount);
+        Assert.Equal("Licencias", Assert.Single(missing.Categories).Name);
+
+        await using var content = new MemoryStream("%PDF-1.7 evidence"u8.ToArray());
+        var completed = await documentService.UploadAsync(employee.Id,
+            new UploadEmployeeDocumentInput(documentType.Id, new DateOnly(2026, 8, 1), new DateOnly(2026, 9, 1),
+                [new EmployeeDocumentFileInput("licencia.pdf", "application/pdf", content.Length, content)], []),
+            services.SuperActor, CancellationToken.None);
+
+        Assert.Equal(0, completed.MissingCount);
+        Assert.Equal(new DateOnly(2026, 9, 1), Assert.Single(completed.UpcomingExpirations).ExpiresOn);
+        Assert.Single(storage.Objects);
+    }
+
+    [Fact]
     public async Task EndingRelationshipClosesAssignmentsAndSuspendsLinkedAdministrator()
     {
         await fixture.ResetAsync();
@@ -766,6 +803,21 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
     private sealed class FixedClock(DateTimeOffset now) : IClock
     {
         public DateTimeOffset UtcNow { get; } = now;
+    }
+
+    private sealed class MemoryDocumentStorage : IEmployeeDocumentStorage
+    {
+        public Dictionary<string, byte[]> Objects { get; } = [];
+        public async Task<string> UploadAsync(Stream content, string extension, string contentType, CancellationToken cancellationToken)
+        {
+            var name = $"private/{Guid.NewGuid():N}{extension}";
+            using var memory = new MemoryStream();
+            await content.CopyToAsync(memory, cancellationToken);
+            Objects[name] = memory.ToArray();
+            return name;
+        }
+        public Task<Stream> DownloadAsync(string objectName, CancellationToken cancellationToken) => Task.FromResult<Stream>(new MemoryStream(Objects[objectName]));
+        public Task DeleteAsync(string objectName, CancellationToken cancellationToken) { Objects.Remove(objectName); return Task.CompletedTask; }
     }
 
     private sealed class CapturingEmailSender : IEmailSender

@@ -189,6 +189,14 @@ El tipo documental recibe `categoryId`, nombre, descripción, obligatoriedad, mo
 
 La configuración documental de un cargo recibe `documentTypeIds` y reemplaza la selección completa. Solo admite tipos disponibles con alcance `EMPLOYEE` del mismo tenant. El listado de cargos incluye `requiredDocumentCount`; una referencia inválida responde con `job_position.invalid_document_requirement`.
 
+| Método | Ruta | Política |
+| --- | --- | --- |
+| `GET` | `/api/tenant/employees/{employeeId}/documents/summary` | administrador tenant con acceso al trabajador |
+| `POST` | `/api/tenant/employees/{employeeId}/documents` | administrador tenant con acceso al trabajador |
+| `GET` | `/api/tenant/employees/{employeeId}/documents/evidence/{evidenceId}` | administrador tenant con acceso al trabajador |
+
+La carga usa `multipart/form-data` con `documentTypeId`, fechas opcionales, `files` y `links`. La API valida requisitos efectivos, fechas, evidencia permitida, firma del archivo, tenant, sucursal y restricción sobre el propio expediente.
+
 ## Idempotencia y concurrencia
 
 No agregar infraestructura genérica de idempotencia. Aplicarla a endpoints que realmente puedan duplicar operaciones sensibles. Usar tokens de concurrencia cuando haya riesgo real de sobrescribir cambios importantes.

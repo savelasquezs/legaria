@@ -138,6 +138,11 @@ Reglas:
 8. Los requisitos documentales de un cargo solo pueden incluir tipos activos de categorías activas con alcance `EMPLOYEE` dentro de la misma organización.
 9. La configuración de requisitos de un cargo es reemplazable y puede quedar vacía; quitar una selección no elimina ni desactiva el tipo documental.
 10. Los requisitos efectivos futuros serán la unión entre los tipos obligatorios por defecto para todos los trabajadores y los tipos seleccionados explícitamente para el cargo. Esta fase solo configura la relación y no calcula cumplimiento.
+11. Los requisitos efectivos de un trabajador activo son la unión de los tipos obligatorios por defecto y los exigidos por sus cargos activos visibles para el administrador.
+12. Un requisito se considera pendiente cuando no existe una versión vigente sin reemplazar o cuando todas sus versiones vigentes están vencidas.
+13. Los próximos vencimientos incluyen documentos que vencen entre la fecha actual y dos meses calendario después.
+14. Los archivos se almacenan de forma privada en Firebase Storage con nombres internos aleatorios; nunca se persisten URLs públicas ni tokens de descarga.
+15. La carga admite PDF, JPEG, PNG, WebP, MP4 y WebM validados por contenido, además de enlaces HTTPS cuando el tipo los permita. El límite total de la solicitud es 105 MB y cada archivo no puede superar 100 MB.
 
 ## Expedientes
 

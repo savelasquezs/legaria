@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { listBranches } from '../services/branches'
 import { listDocumentCategories, listDocumentTypes } from '../services/documentCatalog'
+import { getEmployeeDocumentSummary } from '../services/employeeDocuments'
 import {
   getEmployee,
   getJobPositionDocumentRequirements,
@@ -24,6 +25,11 @@ vi.mock('../services/branches', () => ({
 vi.mock('../services/documentCatalog', () => ({
   listDocumentCategories: vi.fn(),
   listDocumentTypes: vi.fn(),
+}))
+
+vi.mock('../services/employeeDocuments', () => ({
+  getEmployeeDocumentSummary: vi.fn(),
+  uploadEmployeeDocument: vi.fn(),
 }))
 
 vi.mock('../services/employees', () => ({
@@ -95,6 +101,16 @@ describe('employment lifecycle pages', () => {
     vi.mocked(updateJobPositionDocumentRequirements).mockResolvedValue({
       jobPositionId: 'position-1',
       documentTypeIds: ['type-1'],
+    })
+    vi.mocked(getEmployeeDocumentSummary).mockResolvedValue({
+      requiredCount: 1,
+      missingCount: 1,
+      missingDocuments: [{ documentTypeId: 'type-1', name: 'Cédula', categoryId: 'category-1', categoryName: 'Identidad' }],
+      upcomingExpirations: [],
+      categories: [{
+        id: 'category-1', name: 'Identidad', missingCount: 1,
+        documentTypes: [{ id: 'type-1', name: 'Cédula', isMissing: true, issueDateMode: 'NEVER', expirationDateMode: 'NEVER', allowsMultipleEvidenceItems: false, allowedEvidenceKinds: ['PDF'] }],
+      }],
     })
     vi.mocked(listBranches).mockResolvedValue({
       items: [{
@@ -192,7 +208,10 @@ describe('employment lifecycle pages', () => {
     expect(wrapper.text()).toContain('María Trabajadora')
     expect(wrapper.text()).toContain('Administrador')
     expect(wrapper.text()).toContain('Centro')
-    expect(wrapper.text()).toContain('Finalizar relación')
+    expect(wrapper.text()).toContain('Obligatorios pendientes')
+    expect(wrapper.text()).toContain('Cédula')
+    expect(wrapper.text()).toContain('Identidad · 1')
+    expect(wrapper.text()).toContain('Próximos vencimientos')
   })
 
   it('renders employee details without mutation actions for a branch administrator', async () => {

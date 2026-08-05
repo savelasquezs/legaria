@@ -591,6 +591,94 @@ h3 {
   border-top: 1px solid var(--color-border);
 }
 
+.employee-detail-page .page-header {
+  margin-bottom: var(--space-2);
+}
+
+.employee-detail-page .page-header h1 {
+  font-size: var(--font-h1);
+}
+
+.employee-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.employee-mini-card .q-card__section {
+  display: grid;
+  gap: var(--space-1);
+  min-height: 112px;
+  padding: var(--space-1-5);
+}
+
+.employee-mini-card__heading,
+.employee-panel-heading,
+.employee-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.employee-mini-card__heading span,
+.compact-document-list small,
+.employee-panel-heading span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-small);
+}
+
+.compact-document-list {
+  display: grid;
+  gap: var(--space-0-5);
+  font-size: var(--font-small);
+}
+
+.employee-document-actions {
+  display: flex;
+  gap: var(--space-1);
+  margin: var(--space-1) 0;
+  overflow-x: auto;
+}
+
+.employee-document-actions .q-btn {
+  flex: 0 0 auto;
+}
+
+.employee-assignments-panel {
+  margin-top: var(--space-1);
+}
+
+.employee-panel-heading {
+  padding: var(--space-1) var(--space-1-5);
+}
+
+.employee-assignment-row {
+  min-height: 52px;
+  padding: var(--space-0-5) var(--space-1-5);
+}
+
+.employee-row-actions {
+  flex-direction: row;
+}
+
+.employee-history {
+  margin-top: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+}
+
+.compact-upload-form {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.compact-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
 .candidate-list {
   display: grid;
   gap: var(--space-1);
@@ -855,6 +943,11 @@ h3 {
   }
 
   .assignment-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-overview-grid,
+  .compact-form-grid {
     grid-template-columns: 1fr;
   }
 

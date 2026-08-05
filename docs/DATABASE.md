@@ -40,7 +40,8 @@ Desactivar una categoría no modifica sus tipos, pero su disponibilidad efectiva
 Relaciona un cargo con un tipo documental requerido mediante claves foráneas compuestas por organización. Su clave primaria evita duplicados y solo conserva la configuración vigente; cambiar la selección no altera el catálogo documental.
 
 ### EmployeeDocument
-Archivo y metadatos entregados para un trabajador. Puede apuntar a asignación cuando aplique.
+
+Versión documental de un trabajador con tipo, fechas de expedición y vencimiento, autor, creación y reemplazo. `EmployeeDocumentEvidence` conserva una o varias evidencias privadas mediante clave interna de Firebase Storage o enlace HTTPS; nunca almacena tokens de descarga.
 
 ## Expedientes
 
@@ -120,6 +121,8 @@ Evento persistente para operaciones sensibles. No contiene correo, token ni secr
 `DocumentCatalog` agrega categorías y tipos documentales sin insertar datos iniciales ni crear todavía documentos o evidencias concretas.
 
 `JobPositionDocumentRequirements` agrega la relación multitenant entre cargos y tipos documentales, sin calcular cumplimiento ni crear documentos de trabajadores.
+
+`EmployeeDocuments` agrega versiones y evidencias documentales con claves foráneas multitenant y conservación de reemplazos.
 
 ## Eliminación
 

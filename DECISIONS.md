@@ -160,6 +160,12 @@ Este archivo documenta decisiones duraderas. Agregar una entrada cuando cambie a
 
 **Consecuencia:** la configuración puede cambiar sin modificar el catálogo ni el historial laboral. El cumplimiento se calculará más adelante uniendo los requisitos globales y los específicos del cargo.
 
+## 2026-08-05 — Evidencias privadas en Firebase Storage
+
+**Decisión:** las evidencias de documentos laborales se almacenan en Firebase Storage reutilizando Google Application Credentials del proyecto Señor Arroz, pero sin ACL pública ni token permanente de descarga.
+
+**Consecuencia:** la base conserva únicamente una clave interna aleatoria y toda descarga pasa por autorización multitenant de Legaria. El proveedor queda detrás de `IEmployeeDocumentStorage`.
+
 ## Pendientes deliberados
 
 Estas decisiones no están cerradas y no deben inventarse:
