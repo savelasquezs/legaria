@@ -27,11 +27,17 @@ Cargo activo o inactivo definido por la organización y reutilizable en sucursal
 
 ## Documentos
 
-### DocumentType
-Define el tipo, alcance y necesidad de fechas de emisión o vencimiento.
+### DocumentCategory
+Categoría organizacional con nombre normalizado, descripción opcional, alcance inmutable `EMPLOYEE|BRANCH`, estado y fechas. Es única por organización, alcance y nombre normalizado.
 
-### PositionDocumentRequirement
-Relaciona cargos con documentos requeridos.
+### DocumentType
+Pertenece a una categoría del mismo tenant y define nombre, descripción, obligatoriedad por defecto, modos `NEVER|OPTIONAL|REQUIRED` para expedición y vencimiento, multiplicidad de versiones vigentes y evidencias, y una lista no vacía de `PDF|IMAGE|VIDEO|LINK`. Es único por categoría y nombre normalizado.
+
+Desactivar una categoría no modifica sus tipos, pero su disponibilidad efectiva exige que ambos registros estén activos. La clave foránea compuesta evita asociar tipos con categorías de otra organización.
+
+### JobPositionDocumentRequirement
+
+Relaciona un cargo con un tipo documental requerido mediante claves foráneas compuestas por organización. Su clave primaria evita duplicados y solo conserva la configuración vigente; cambiar la selección no altera el catálogo documental.
 
 ### EmployeeDocument
 Archivo y metadatos entregados para un trabajador. Puede apuntar a asignación cuando aplique.
@@ -110,6 +116,10 @@ Evento persistente para operaciones sensibles. No contiene correo, token ni secr
 `BranchesAndBranchAdministrators` agrega sucursales, historial `user_branch_accesses`, actor tenant y sucursal afectada en auditoría. No modifica ni inventa datos de las organizaciones y cuentas existentes.
 
 `EmployeesEmploymentAndIntegratedBranchAdministration` agrega relaciones laborales, cargos y asignaciones. También hace único el vínculo cuenta-trabajador y falla si encuentra un `BRANCH_ADMIN` sin `employee_id`, en lugar de inventar una persona o documento.
+
+`DocumentCatalog` agrega categorías y tipos documentales sin insertar datos iniciales ni crear todavía documentos o evidencias concretas.
+
+`JobPositionDocumentRequirements` agrega la relación multitenant entre cargos y tipos documentales, sin calcular cumplimiento ni crear documentos de trabajadores.
 
 ## Eliminación
 

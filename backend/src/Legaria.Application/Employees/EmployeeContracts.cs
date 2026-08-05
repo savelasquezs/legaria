@@ -90,7 +90,15 @@ public sealed record TransitionEmployeeAssignmentInput(
 public sealed record JobPositionResult(
     Guid Id,
     string Name,
-    string Status);
+    string Status,
+    int RequiredDocumentCount);
+
+public sealed record JobPositionDocumentRequirementsInput(
+    IReadOnlyCollection<Guid> DocumentTypeIds);
+
+public sealed record JobPositionDocumentRequirementsResult(
+    Guid JobPositionId,
+    IReadOnlyCollection<Guid> DocumentTypeIds);
 
 public static class EmployeeErrorCodes
 {
@@ -105,6 +113,7 @@ public static class EmployeeErrorCodes
     public const string JobPositionDuplicateName = "job_position.duplicate_name";
     public const string JobPositionNotFound = "job_position.not_found";
     public const string JobPositionInvalidStatus = "job_position.invalid_status_transition";
+    public const string InvalidDocumentRequirement = "job_position.invalid_document_requirement";
     public const string RelationshipNotFound = "employment_relationship.not_found";
     public const string RelationshipInvalidState = "employment_relationship.invalid_state";
     public const string AssignmentNotFound = "employee_assignment.not_found";

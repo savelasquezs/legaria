@@ -1,5 +1,6 @@
 using Legaria.Application.Employees;
 using Legaria.Domain.Authentication;
+using Legaria.Domain.Documents;
 using Legaria.Domain.Employees;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -13,12 +14,17 @@ public sealed class EmployeeRepository(LegariaDbContext dbContext) : IEmployeeRe
         Guid organizationId,
         Guid? branchId,
         Guid? excludeBranchId,
+        Guid? excludedEmployeeId,
         int skip,
         int take,
         string? search,
         CancellationToken cancellationToken)
     {
         var query = dbContext.Employees.AsNoTracking().Where(item => item.OrganizationId == organizationId);
+        if (excludedEmployeeId is { } excludedEmployee)
+        {
+            query = query.Where(item => item.Id != excludedEmployee);
+        }
         if (branchId is { } includedBranch)
         {
             query = query.Where(employee =>
@@ -257,7 +263,7 @@ public sealed class EmployeeRepository(LegariaDbContext dbContext) : IEmployeeRe
     public Task<JobPosition?> FindJobPositionAsync(Guid organizationId, Guid id, CancellationToken cancellationToken) =>
         dbContext.JobPositions.SingleOrDefaultAsync(item => item.OrganizationId == organizationId && item.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyCollection<JobPosition>> ListJobPositionsAsync(
+    public async Task<IReadOnlyCollection<JobPositionQueryItem>> ListJobPositionsAsync(
         Guid organizationId,
         JobPositionStatus? status,
         CancellationToken cancellationToken) =>
@@ -265,6 +271,11 @@ public sealed class EmployeeRepository(LegariaDbContext dbContext) : IEmployeeRe
             .AsNoTracking()
             .Where(item => item.OrganizationId == organizationId && (status == null || item.Status == status))
             .OrderBy(item => item.Name)
+            .Select(item => new JobPositionQueryItem(
+                item,
+                dbContext.JobPositionDocumentRequirements.Count(requirement =>
+                    requirement.OrganizationId == organizationId &&
+                    requirement.JobPositionId == item.Id)))
             .ToArrayAsync(cancellationToken);
 
     public Task<bool> JobPositionNameExistsAsync(
@@ -275,6 +286,68 @@ public sealed class EmployeeRepository(LegariaDbContext dbContext) : IEmployeeRe
         dbContext.JobPositions.AnyAsync(item =>
             item.OrganizationId == organizationId && item.NormalizedName == normalizedName && item.Id != excludingId,
             cancellationToken);
+
+    public async Task<IReadOnlyCollection<Guid>> ListJobPositionDocumentRequirementIdsAsync(
+        Guid organizationId,
+        Guid jobPositionId,
+        CancellationToken cancellationToken) =>
+        await dbContext.JobPositionDocumentRequirements
+            .AsNoTracking()
+            .Where(item => item.OrganizationId == organizationId && item.JobPositionId == jobPositionId)
+            .OrderBy(item => item.DocumentTypeId)
+            .Select(item => item.DocumentTypeId)
+            .ToArrayAsync(cancellationToken);
+
+    public Task<int> CountJobPositionDocumentRequirementsAsync(
+        Guid organizationId,
+        Guid jobPositionId,
+        CancellationToken cancellationToken) =>
+        dbContext.JobPositionDocumentRequirements.CountAsync(item =>
+            item.OrganizationId == organizationId && item.JobPositionId == jobPositionId,
+            cancellationToken);
+
+    public async Task<bool> AreAvailableEmployeeDocumentTypesAsync(
+        Guid organizationId,
+        IReadOnlyCollection<Guid> documentTypeIds,
+        CancellationToken cancellationToken)
+    {
+        if (documentTypeIds.Count == 0)
+        {
+            return true;
+        }
+
+        var availableCount = await (
+            from documentType in dbContext.DocumentTypes.AsNoTracking()
+            join category in dbContext.DocumentCategories.AsNoTracking()
+                on new { documentType.OrganizationId, Id = documentType.CategoryId }
+                equals new { category.OrganizationId, category.Id }
+            where documentType.OrganizationId == organizationId &&
+                documentTypeIds.Contains(documentType.Id) &&
+                documentType.Status == DocumentCatalogStatus.Active &&
+                category.Status == DocumentCatalogStatus.Active &&
+                category.Scope == DocumentScope.Employee
+            select documentType.Id)
+            .CountAsync(cancellationToken);
+        return availableCount == documentTypeIds.Count;
+    }
+
+    public async Task ReplaceJobPositionDocumentRequirementsAsync(
+        Guid organizationId,
+        Guid jobPositionId,
+        IReadOnlyCollection<Guid> documentTypeIds,
+        CancellationToken cancellationToken)
+    {
+        var current = await dbContext.JobPositionDocumentRequirements
+            .Where(item => item.OrganizationId == organizationId && item.JobPositionId == jobPositionId)
+            .ToArrayAsync(cancellationToken);
+        var selectedIds = documentTypeIds.ToHashSet();
+        var currentIds = current.Select(item => item.DocumentTypeId).ToHashSet();
+        dbContext.JobPositionDocumentRequirements.RemoveRange(
+            current.Where(item => !selectedIds.Contains(item.DocumentTypeId)));
+        dbContext.JobPositionDocumentRequirements.AddRange(
+            selectedIds.Where(documentTypeId => !currentIds.Contains(documentTypeId)).Select(documentTypeId =>
+            JobPositionDocumentRequirement.Create(organizationId, jobPositionId, documentTypeId)));
+    }
 
     public Task<UserAccount?> FindLinkedAccountAsync(
         Guid organizationId,

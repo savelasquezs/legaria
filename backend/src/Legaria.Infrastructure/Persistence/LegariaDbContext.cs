@@ -1,5 +1,6 @@
 using Legaria.Domain.Authentication;
 using Legaria.Domain.Employees;
+using Legaria.Domain.Documents;
 using Legaria.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,7 +16,10 @@ public sealed class LegariaDbContext(DbContextOptions<LegariaDbContext> options)
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<EmploymentRelationship> EmploymentRelationships => Set<EmploymentRelationship>();
     public DbSet<JobPosition> JobPositions => Set<JobPosition>();
+    public DbSet<JobPositionDocumentRequirement> JobPositionDocumentRequirements => Set<JobPositionDocumentRequirement>();
     public DbSet<EmployeeAssignment> EmployeeAssignments => Set<EmployeeAssignment>();
+    public DbSet<DocumentCategory> DocumentCategories => Set<DocumentCategory>();
+    public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
     public DbSet<AccountEmail> AccountEmails => Set<AccountEmail>();
     public DbSet<SystemRole> SystemRoles => Set<SystemRole>();

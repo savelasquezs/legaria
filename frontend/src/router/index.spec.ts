@@ -57,7 +57,7 @@ describe('authentication route guards', () => {
     expect(router.currentRoute.value.path).toBe('/platform')
   })
 
-  it('keeps a branch administrator out of superadministrator routes', async () => {
+  it('keeps a branch administrator out of mutations and allows employee details', async () => {
     const auth = useAuthStore(pinia)
     auth.account = branchAdministratorAccount
 
@@ -67,8 +67,11 @@ describe('authentication route guards', () => {
     await router.push('/app/job-positions')
     expect(router.currentRoute.value.path).toBe('/app/branches')
 
+    await router.push('/app/document-catalog')
+    expect(router.currentRoute.value.name).toBe('tenant-document-catalog')
+
     await router.push('/app/employees/4cef9d70-11a5-4be3-a5bf-8f96ecbe1715')
-    expect(router.currentRoute.value.path).toBe('/app/branches')
+    expect(router.currentRoute.value.name).toBe('tenant-employee-detail')
 
     await router.push('/app/branches/4cef9d70-11a5-4be3-a5bf-8f96ecbe1715')
     expect(router.currentRoute.value.name).toBe('tenant-branch-detail')

@@ -5,6 +5,7 @@ import type {
   EmployeeDetail,
   EmployeePage,
   JobPosition,
+  JobPositionDocumentRequirements,
   TransitionAssignmentData,
 } from '../types/employees'
 
@@ -72,6 +73,22 @@ export async function updateJobPosition(id: string, name: string): Promise<JobPo
 
 export async function changeJobPositionStatus(id: string, action: 'deactivate' | 'reactivate'): Promise<JobPosition> {
   const { data } = await api.post<JobPosition>(`/api/tenant/job-positions/${id}/${action}`)
+  return data
+}
+
+export async function getJobPositionDocumentRequirements(id: string): Promise<JobPositionDocumentRequirements> {
+  const { data } = await api.get<JobPositionDocumentRequirements>(`/api/tenant/job-positions/${id}/document-requirements`)
+  return data
+}
+
+export async function updateJobPositionDocumentRequirements(
+  id: string,
+  documentTypeIds: string[],
+): Promise<JobPositionDocumentRequirements> {
+  const { data } = await api.put<JobPositionDocumentRequirements>(
+    `/api/tenant/job-positions/${id}/document-requirements`,
+    { documentTypeIds },
+  )
   return data
 }
 

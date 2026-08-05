@@ -83,6 +83,8 @@ Reglas:
 3. La restricción aplica a datos personales, contratos, documentos, incapacidades, permisos, vacaciones, procesos disciplinarios, dotación, comentarios y adjuntos del expediente.
 4. `SUPER_ADMIN` sí puede gestionar el expediente del administrador.
 5. La validación se realiza en backend usando el `employee_id` vinculado a la cuenta.
+6. Un `BRANCH_ADMIN` puede consultar trabajadores con asignación activa en sus sucursales autorizadas, excepto su propio expediente.
+7. La consulta de detalle para `BRANCH_ADMIN` solo incluye asignaciones de sus sucursales autorizadas y no expone la administración de cuentas.
 
 ## Relación laboral y asignaciones
 
@@ -113,6 +115,19 @@ Reglas:
 
 ## Documentos del trabajador
 
+### Catálogo organizacional
+
+1. Cada organización administra su propio catálogo vacío de categorías y tipos de documento.
+2. Una categoría tiene alcance inmutable `EMPLOYEE` o `BRANCH`; sus tipos heredan ese alcance.
+3. El nombre de categoría es único por organización y alcance, y el nombre de tipo es único dentro de su categoría, normalizando espacios y mayúsculas/minúsculas.
+4. Categorías y tipos se desactivan o reactivan; no se eliminan físicamente.
+5. Una categoría inactiva hace indisponibles sus tipos para usos nuevos sin modificar el estado propio de estos.
+6. Un tipo solo puede moverse a una categoría activa del mismo alcance.
+7. Cada tipo define obligatoriedad por defecto, modo de fecha de expedición y vencimiento, versiones vigentes, cantidad de evidencias y evidencias permitidas `PDF`, `IMAGE`, `VIDEO` o `LINK`.
+8. Los modos de fecha son `NEVER`, `OPTIONAL` o `REQUIRED` y debe existir al menos una evidencia permitida.
+9. `SUPER_ADMIN` administra ambos alcances. `BRANCH_ADMIN` consulta todo el catálogo, pero solo modifica el alcance `BRANCH`.
+10. El catálogo se ordena alfabéticamente y no contiene plantillas ni registros precargados.
+
 1. Existen documentos aplicables a todos los trabajadores, a cargos específicos u opcionales.
 2. Los requisitos por cargo se definen mediante una relación explícita.
 3. La cédula y otros documentos personales pertenecen al trabajador, no a una asignación.
@@ -120,6 +135,9 @@ Reglas:
 5. Reemplazar un documento conserva la versión anterior como historial.
 6. Los estados de vigencia, próximo a vencer y vencido se calculan a partir de fechas; no se editan manualmente.
 7. El archivo debe almacenarse de forma privada y entregarse mediante acceso autorizado.
+8. Los requisitos documentales de un cargo solo pueden incluir tipos activos de categorías activas con alcance `EMPLOYEE` dentro de la misma organización.
+9. La configuración de requisitos de un cargo es reemplazable y puede quedar vacía; quitar una selección no elimina ni desactiva el tipo documental.
+10. Los requisitos efectivos futuros serán la unión entre los tipos obligatorios por defecto para todos los trabajadores y los tipos seleccionados explícitamente para el cargo. Esta fase solo configura la relación y no calcula cumplimiento.
 
 ## Expedientes
 

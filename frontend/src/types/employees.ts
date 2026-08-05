@@ -79,6 +79,12 @@ export interface JobPosition {
   id: string
   name: string
   status: 'ACTIVE' | 'INACTIVE'
+  requiredDocumentCount: number
+}
+
+export interface JobPositionDocumentRequirements {
+  jobPositionId: string
+  documentTypeIds: string[]
 }
 
 export interface TransitionAssignmentData {

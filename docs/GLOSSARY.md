@@ -6,6 +6,9 @@
 - **EmploymentRelationship:** vínculo laboral de un Employee con la organización durante un periodo.
 - **EmployeeAssignment:** asignación a una sucursal y cargo.
 - **JobPosition:** cargo laboral creado por la organización.
+- **DocumentCategory:** categoría organizacional de tipos documentales con alcance de trabajador o sucursal.
+- **DocumentType:** plantilla de requisitos y evidencias para un documento futuro.
+- **JobPositionDocumentRequirement:** tipo documental exigido explícitamente para un cargo.
 - **UserAccount:** cuenta con acceso al sistema.
 - **PlatformUser:** cuenta global de operación de Legaria; no pertenece a una organización.
 - **AccountType:** discriminador `PLATFORM` o `TENANT` usado en identidad y sesiones.

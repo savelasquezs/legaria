@@ -28,6 +28,10 @@ public sealed record EmployeeDetailQueryItem(
     AccountToken? Invitation,
     IReadOnlyCollection<Guid> AdministrativeBranchIds);
 
+public sealed record JobPositionQueryItem(
+    JobPosition JobPosition,
+    int RequiredDocumentCount);
+
 public interface IEmployeeTransaction : IAsyncDisposable
 {
     Task CommitAsync(CancellationToken cancellationToken);
@@ -39,6 +43,7 @@ public interface IEmployeeRepository
         Guid organizationId,
         Guid? branchId,
         Guid? excludeBranchId,
+        Guid? excludedEmployeeId,
         int skip,
         int take,
         string? search,
@@ -57,8 +62,12 @@ public interface IEmployeeRepository
     Task<bool> AssignmentPeriodOverlapsAsync(Guid organizationId, Guid relationshipId, Guid branchId, DateOnly startedOn, DateOnly? endedOn, Guid? excludingAssignmentId, CancellationToken cancellationToken);
     Task<JobPosition?> FindActiveJobPositionAsync(Guid organizationId, Guid id, CancellationToken cancellationToken);
     Task<JobPosition?> FindJobPositionAsync(Guid organizationId, Guid id, CancellationToken cancellationToken);
-    Task<IReadOnlyCollection<JobPosition>> ListJobPositionsAsync(Guid organizationId, JobPositionStatus? status, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<JobPositionQueryItem>> ListJobPositionsAsync(Guid organizationId, JobPositionStatus? status, CancellationToken cancellationToken);
     Task<bool> JobPositionNameExistsAsync(Guid organizationId, string normalizedName, Guid? excludingId, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<Guid>> ListJobPositionDocumentRequirementIdsAsync(Guid organizationId, Guid jobPositionId, CancellationToken cancellationToken);
+    Task<int> CountJobPositionDocumentRequirementsAsync(Guid organizationId, Guid jobPositionId, CancellationToken cancellationToken);
+    Task<bool> AreAvailableEmployeeDocumentTypesAsync(Guid organizationId, IReadOnlyCollection<Guid> documentTypeIds, CancellationToken cancellationToken);
+    Task ReplaceJobPositionDocumentRequirementsAsync(Guid organizationId, Guid jobPositionId, IReadOnlyCollection<Guid> documentTypeIds, CancellationToken cancellationToken);
     Task<UserAccount?> FindLinkedAccountAsync(Guid organizationId, Guid employeeId, CancellationToken cancellationToken);
     void AddEmployee(Employee employee);
     void AddRelationship(EmploymentRelationship relationship);
@@ -80,6 +89,8 @@ public interface IEmployeeService
     Task<JobPositionResult> UpdateJobPositionAsync(Guid id, JobPositionInput input, CurrentAccount actor, CancellationToken cancellationToken);
     Task<JobPositionResult> DeactivateJobPositionAsync(Guid id, CurrentAccount actor, CancellationToken cancellationToken);
     Task<JobPositionResult> ReactivateJobPositionAsync(Guid id, CurrentAccount actor, CancellationToken cancellationToken);
+    Task<JobPositionDocumentRequirementsResult> GetJobPositionDocumentRequirementsAsync(Guid id, CurrentAccount actor, CancellationToken cancellationToken);
+    Task<JobPositionDocumentRequirementsResult> UpdateJobPositionDocumentRequirementsAsync(Guid id, JobPositionDocumentRequirementsInput input, CurrentAccount actor, CancellationToken cancellationToken);
     Task<EmployeeDetailResult> EndRelationshipAsync(Guid employeeId, Guid relationshipId, EndEmploymentRelationshipInput input, CurrentAccount actor, ClientContext client, CancellationToken cancellationToken);
     Task<EmployeeDetailResult> EndAssignmentAsync(Guid employeeId, Guid assignmentId, EndEmployeeAssignmentInput input, CurrentAccount actor, ClientContext client, CancellationToken cancellationToken);
     Task<EmployeeDetailResult> TransitionAssignmentAsync(Guid employeeId, Guid assignmentId, TransitionEmployeeAssignmentInput input, CurrentAccount actor, ClientContext client, CancellationToken cancellationToken);

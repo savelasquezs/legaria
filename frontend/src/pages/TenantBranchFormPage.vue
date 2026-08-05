@@ -174,9 +174,10 @@ onMounted(load)
       </q-form>
 
       <BranchEmployeesSection
-        v-if="editing && branch && isSuperAdmin"
+        v-if="editing && branch"
         :branch-id="branch.id"
         :branch-active="branch.status === 'ACTIVE'"
+        :read-only="!isSuperAdmin"
       />
 
       <ConfirmDialog

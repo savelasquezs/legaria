@@ -4,6 +4,7 @@ using Legaria.Application.Configuration;
 using Legaria.Application.Employees;
 using Legaria.Application.Organizations;
 using Legaria.Domain.Authentication;
+using Legaria.Domain.Documents;
 using Legaria.Domain.Employees;
 using Legaria.Domain.Tenancy;
 using Legaria.Infrastructure.Authentication;
@@ -279,6 +280,66 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
     }
 
     [Fact]
+    public async Task BranchAdministratorSeesOtherWorkersOnlyInsideAssignedBranches()
+    {
+        await fixture.ResetAsync();
+        await using var context = fixture.CreateDbContext();
+        var services = await CreateServicesAsync(context);
+        var assignedBranch = await services.Branches.CreateBranchAsync(
+            BranchInput("Centro"), services.SuperActor, Client(), CancellationToken.None);
+        var hiddenBranch = await services.Branches.CreateBranchAsync(
+            BranchInput("Norte"), services.SuperActor, Client(), CancellationToken.None);
+        var administrator = await CreateAdministratorAsync(services, assignedBranch.Id, [assignedBranch.Id]);
+        var colleague = await services.Employees.CreateAsync(
+            assignedBranch.Id,
+            new CreateEmployeeInput("CC", "1030999999", "Carlos", "Compañero", services.PositionId, new DateOnly(2026, 8, 4), true, null),
+            services.SuperActor,
+            Client(),
+            CancellationToken.None);
+        await services.Employees.AssignAsync(
+            hiddenBranch.Id,
+            colleague.Id,
+            new AssignEmployeeInput(services.PositionId, new DateOnly(2026, 8, 4), false, null),
+            services.SuperActor,
+            Client(),
+            CancellationToken.None);
+        var hiddenWorker = await services.Employees.CreateAsync(
+            hiddenBranch.Id,
+            new CreateEmployeeInput("CC", "1030888777", "Helena", "Oculta", services.PositionId, new DateOnly(2026, 8, 4), true, null),
+            services.SuperActor,
+            Client(),
+            CancellationToken.None);
+        var actor = new CurrentAccount(
+            administrator.AdministrativeAccess!.AccountId,
+            AccountType.Tenant,
+            services.SuperActor.OrganizationId,
+            administrator.Id,
+            [SystemRoleCodes.BranchAdmin]);
+
+        var page = await services.Employees.ListAsync(
+            1, 20, null, assignedBranch.Id, null, actor, CancellationToken.None);
+        var visible = Assert.Single(page.Items);
+        Assert.Equal(colleague.Id, visible.Id);
+        Assert.Null(visible.AdministrativeAccess);
+        Assert.Equal(assignedBranch.Id, Assert.Single(visible.Assignments).BranchId);
+
+        var detail = await services.Employees.GetAsync(colleague.Id, actor, CancellationToken.None);
+        Assert.Equal(assignedBranch.Id, Assert.Single(Assert.Single(detail.EmploymentRelationships).Assignments).BranchId);
+        Assert.Equal(
+            EmployeeErrorCodes.Forbidden,
+            (await Assert.ThrowsAsync<EmployeeException>(() => services.Employees.GetAsync(
+                administrator.Id, actor, CancellationToken.None))).Code);
+        Assert.Equal(
+            EmployeeErrorCodes.NotFound,
+            (await Assert.ThrowsAsync<EmployeeException>(() => services.Employees.GetAsync(
+                hiddenWorker.Id, actor, CancellationToken.None))).Code);
+        Assert.Equal(
+            EmployeeErrorCodes.NotFound,
+            (await Assert.ThrowsAsync<EmployeeException>(() => services.Employees.ListAsync(
+                1, 20, null, hiddenBranch.Id, null, actor, CancellationToken.None))).Code);
+    }
+
+    [Fact]
     public async Task JobPositionsCanBeManagedWithoutLosingHistory()
     {
         await fixture.ResetAsync();
@@ -323,6 +384,106 @@ public sealed class BranchAdministrationIntegrationTests(PostgreSqlFixture fixtu
             services.SuperActor,
             CancellationToken.None);
         Assert.Equal("ACTIVE", reactivated.Status);
+    }
+
+    [Fact]
+    public async Task JobPositionDocumentRequirementsAreTenantScopedAndOnlyAcceptAvailableEmployeeTypes()
+    {
+        await fixture.ResetAsync();
+        await using var context = fixture.CreateDbContext();
+        var services = await CreateServicesAsync(context);
+        var organizationId = services.SuperActor.OrganizationId!.Value;
+        var now = new DateTimeOffset(2026, 8, 4, 20, 0, 0, TimeSpan.Zero);
+        var employeeCategory = DocumentCategory.Create(
+            organizationId, "Identidad", "IDENTIDAD", null, DocumentScope.Employee, now);
+        var inactiveCategory = DocumentCategory.Create(
+            organizationId, "Cursos", "CURSOS", null, DocumentScope.Employee, now);
+        inactiveCategory.Deactivate(now);
+        var branchCategory = DocumentCategory.Create(
+            organizationId, "Actas", "ACTAS", null, DocumentScope.Branch, now);
+        var employeeType = DocumentType.Create(
+            organizationId, employeeCategory.Id, "Cédula", "CÉDULA", null, false,
+            DocumentDateMode.Never, DocumentDateMode.Never, false, false, [DocumentEvidenceKinds.Pdf], now);
+        var unavailableType = DocumentType.Create(
+            organizationId, inactiveCategory.Id, "Curso", "CURSO", null, false,
+            DocumentDateMode.Optional, DocumentDateMode.Required, false, false, [DocumentEvidenceKinds.Pdf], now);
+        var branchType = DocumentType.Create(
+            organizationId, branchCategory.Id, "Acta", "ACTA", null, false,
+            DocumentDateMode.Optional, DocumentDateMode.Never, false, false, [DocumentEvidenceKinds.Pdf], now);
+        context.AddRange(employeeCategory, inactiveCategory, branchCategory, employeeType, unavailableType, branchType);
+        await context.SaveChangesAsync();
+
+        var saved = await services.Employees.UpdateJobPositionDocumentRequirementsAsync(
+            services.PositionId,
+            new JobPositionDocumentRequirementsInput([employeeType.Id, employeeType.Id]),
+            services.SuperActor,
+            CancellationToken.None);
+
+        Assert.Equal([employeeType.Id], saved.DocumentTypeIds);
+        Assert.Equal(
+            [employeeType.Id],
+            (await services.Employees.GetJobPositionDocumentRequirementsAsync(
+                services.PositionId,
+                services.SuperActor,
+                CancellationToken.None)).DocumentTypeIds);
+        Assert.Equal(
+            1,
+            Assert.Single(await services.Employees.ListJobPositionsAsync(
+                "ALL",
+                services.SuperActor,
+                CancellationToken.None),
+                item => item.Id == services.PositionId).RequiredDocumentCount);
+        Assert.Equal(
+            [employeeType.Id],
+            (await services.Employees.UpdateJobPositionDocumentRequirementsAsync(
+                services.PositionId,
+                new JobPositionDocumentRequirementsInput([employeeType.Id]),
+                services.SuperActor,
+                CancellationToken.None)).DocumentTypeIds);
+
+        foreach (var invalidTypeId in new[] { unavailableType.Id, branchType.Id, Guid.NewGuid() })
+        {
+            var invalid = await Assert.ThrowsAsync<EmployeeException>(() =>
+                services.Employees.UpdateJobPositionDocumentRequirementsAsync(
+                    services.PositionId,
+                    new JobPositionDocumentRequirementsInput([invalidTypeId]),
+                    services.SuperActor,
+                    CancellationToken.None));
+            Assert.Equal(EmployeeErrorCodes.InvalidDocumentRequirement, invalid.Code);
+        }
+
+        Assert.Equal(
+            [employeeType.Id],
+            (await services.Employees.GetJobPositionDocumentRequirementsAsync(
+                services.PositionId,
+                services.SuperActor,
+                CancellationToken.None)).DocumentTypeIds);
+
+        Assert.Empty((await services.Employees.UpdateJobPositionDocumentRequirementsAsync(
+            services.PositionId,
+            new JobPositionDocumentRequirementsInput([]),
+            services.SuperActor,
+            CancellationToken.None)).DocumentTypeIds);
+
+        var crossTenant = await Assert.ThrowsAsync<EmployeeException>(() =>
+            services.Employees.GetJobPositionDocumentRequirementsAsync(
+                services.PositionId,
+                services.OtherSuperActor,
+                CancellationToken.None));
+        Assert.Equal(EmployeeErrorCodes.JobPositionNotFound, crossTenant.Code);
+        var branchActor = new CurrentAccount(
+            Guid.NewGuid(),
+            AccountType.Tenant,
+            organizationId,
+            Guid.NewGuid(),
+            [SystemRoleCodes.BranchAdmin]);
+        Assert.Equal(
+            EmployeeErrorCodes.Forbidden,
+            (await Assert.ThrowsAsync<EmployeeException>(() =>
+                services.Employees.GetJobPositionDocumentRequirementsAsync(
+                    services.PositionId,
+                    branchActor,
+                    CancellationToken.None))).Code);
     }
 
     [Fact]

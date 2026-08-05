@@ -3,6 +3,7 @@ using System;
 using Legaria.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Legaria.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(LegariaDbContext))]
-    partial class LegariaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260805192846_DocumentCatalog")]
+    partial class DocumentCatalog
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1031,29 +1034,6 @@ namespace Legaria.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Legaria.Domain.Employees.JobPositionDocumentRequirement", b =>
-                {
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("organization_id");
-
-                    b.Property<Guid>("JobPositionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("job_position_id");
-
-                    b.Property<Guid>("DocumentTypeId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("document_type_id");
-
-                    b.HasKey("OrganizationId", "JobPositionId", "DocumentTypeId")
-                        .HasName("pk_job_position_document_requirements");
-
-                    b.HasIndex("OrganizationId", "DocumentTypeId")
-                        .HasDatabaseName("ix_job_position_document_requirements_organization_id_document");
-
-                    b.ToTable("job_position_document_requirements", (string)null);
-                });
-
             modelBuilder.Entity("Legaria.Domain.Tenancy.Branch", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1505,25 +1485,6 @@ namespace Legaria.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_job_positions_organizations_organization_id");
-                });
-
-            modelBuilder.Entity("Legaria.Domain.Employees.JobPositionDocumentRequirement", b =>
-                {
-                    b.HasOne("Legaria.Domain.Documents.DocumentType", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationId", "DocumentTypeId")
-                        .HasPrincipalKey("OrganizationId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_job_position_document_requirements_document_types_organizat");
-
-                    b.HasOne("Legaria.Domain.Employees.JobPosition", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationId", "JobPositionId")
-                        .HasPrincipalKey("OrganizationId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_job_position_document_requirements_job_positions_organizati");
                 });
 
             modelBuilder.Entity("Legaria.Domain.Tenancy.Branch", b =>

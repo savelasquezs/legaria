@@ -1,5 +1,6 @@
 using Legaria.Domain.Authentication;
 using Legaria.Domain.Employees;
+using Legaria.Domain.Documents;
 using Legaria.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -212,6 +213,91 @@ internal sealed class EmployeeAssignmentConfiguration : IEntityTypeConfiguration
         builder.HasOne<JobPosition>()
             .WithMany()
             .HasForeignKey(x => new { x.OrganizationId, x.JobPositionId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class JobPositionDocumentRequirementConfiguration : IEntityTypeConfiguration<JobPositionDocumentRequirement>
+{
+    public void Configure(EntityTypeBuilder<JobPositionDocumentRequirement> builder)
+    {
+        builder.ToTable("job_position_document_requirements");
+        builder.HasKey(x => new { x.OrganizationId, x.JobPositionId, x.DocumentTypeId });
+        builder.HasIndex(x => new { x.OrganizationId, x.DocumentTypeId });
+        builder.HasOne<JobPosition>()
+            .WithMany()
+            .HasForeignKey(x => new { x.OrganizationId, x.JobPositionId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<DocumentType>()
+            .WithMany()
+            .HasForeignKey(x => new { x.OrganizationId, x.DocumentTypeId })
+            .HasPrincipalKey(x => new { x.OrganizationId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class DocumentCategoryConfiguration : IEntityTypeConfiguration<DocumentCategory>
+{
+    public void Configure(EntityTypeBuilder<DocumentCategory> builder)
+    {
+        builder.ToTable("document_categories", table =>
+        {
+            table.HasCheckConstraint("ck_document_categories_scope", "scope IN ('EMPLOYEE', 'BRANCH')");
+            table.HasCheckConstraint("ck_document_categories_status", "status IN ('ACTIVE', 'INACTIVE')");
+        });
+        builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.OrganizationId, x.Id });
+        builder.Property(x => x.Name).HasMaxLength(150).IsRequired();
+        builder.Property(x => x.NormalizedName).HasMaxLength(150).IsRequired();
+        builder.Property(x => x.Description).HasMaxLength(1000);
+        builder.Property(x => x.Scope).HasConversion(
+            value => value == DocumentScope.Employee ? "EMPLOYEE" : "BRANCH",
+            value => value == "EMPLOYEE" ? DocumentScope.Employee : DocumentScope.Branch);
+        builder.Property(x => x.Status).HasConversion(
+            value => value == DocumentCatalogStatus.Active ? "ACTIVE" : "INACTIVE",
+            value => value == "ACTIVE" ? DocumentCatalogStatus.Active : DocumentCatalogStatus.Inactive);
+        builder.HasIndex(x => new { x.OrganizationId, x.Scope, x.NormalizedName }).IsUnique();
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(x => x.OrganizationId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class DocumentTypeConfiguration : IEntityTypeConfiguration<DocumentType>
+{
+    public void Configure(EntityTypeBuilder<DocumentType> builder)
+    {
+        builder.ToTable("document_types", table =>
+        {
+            table.HasCheckConstraint("ck_document_types_status", "status IN ('ACTIVE', 'INACTIVE')");
+            table.HasCheckConstraint("ck_document_types_issue_date_mode", "issue_date_mode IN ('NEVER', 'OPTIONAL', 'REQUIRED')");
+            table.HasCheckConstraint("ck_document_types_expiration_date_mode", "expiration_date_mode IN ('NEVER', 'OPTIONAL', 'REQUIRED')");
+            table.HasCheckConstraint(
+                "ck_document_types_evidence_kinds",
+                "cardinality(allowed_evidence_kinds) > 0 AND allowed_evidence_kinds <@ ARRAY['PDF', 'IMAGE', 'VIDEO', 'LINK']::text[]");
+        });
+        builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.OrganizationId, x.Id });
+        builder.Property(x => x.Name).HasMaxLength(150).IsRequired();
+        builder.Property(x => x.NormalizedName).HasMaxLength(150).IsRequired();
+        builder.Property(x => x.Description).HasMaxLength(1000);
+        builder.Property(x => x.Status).HasConversion(
+            value => value == DocumentCatalogStatus.Active ? "ACTIVE" : "INACTIVE",
+            value => value == "ACTIVE" ? DocumentCatalogStatus.Active : DocumentCatalogStatus.Inactive);
+        builder.Property(x => x.IssueDateMode).HasConversion(
+            value => value == DocumentDateMode.Never ? "NEVER" : value == DocumentDateMode.Optional ? "OPTIONAL" : "REQUIRED",
+            value => value == "NEVER" ? DocumentDateMode.Never : value == "OPTIONAL" ? DocumentDateMode.Optional : DocumentDateMode.Required);
+        builder.Property(x => x.ExpirationDateMode).HasConversion(
+            value => value == DocumentDateMode.Never ? "NEVER" : value == DocumentDateMode.Optional ? "OPTIONAL" : "REQUIRED",
+            value => value == "NEVER" ? DocumentDateMode.Never : value == "OPTIONAL" ? DocumentDateMode.Optional : DocumentDateMode.Required);
+        builder.Property(x => x.AllowedEvidenceKinds).HasColumnType("text[]").IsRequired();
+        builder.HasIndex(x => new { x.OrganizationId, x.CategoryId, x.NormalizedName }).IsUnique();
+        builder.HasOne<DocumentCategory>()
+            .WithMany()
+            .HasForeignKey(x => new { x.OrganizationId, x.CategoryId })
             .HasPrincipalKey(x => new { x.OrganizationId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
     }

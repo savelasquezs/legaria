@@ -28,7 +28,7 @@ import {
 import type { Employee, EmployeePage, JobPosition } from '../types/employees'
 import type { Branch } from '../types/branches'
 
-const props = defineProps<{ branchId: string; branchActive: boolean }>()
+const props = defineProps<{ branchId: string; branchActive: boolean; readOnly?: boolean }>()
 const router = useRouter()
 
 const emptyPage = (): EmployeePage => ({ items: [], page: 1, pageSize: 10, totalItems: 0, totalPages: 0 })
@@ -66,12 +66,12 @@ const form = reactive({
   accessBranchIds: [] as string[],
 })
 
-const columns = [
+const columns = computed(() => [
   { name: 'employee', label: 'Trabajador', field: 'firstName', align: 'left' as const },
   { name: 'document', label: 'Documento', field: 'documentNumber', align: 'left' as const },
   { name: 'position', label: 'Cargo', field: 'position', align: 'left' as const },
-  { name: 'access', label: 'Acceso', field: 'access', align: 'left' as const },
-]
+  ...(!props.readOnly ? [{ name: 'access', label: 'Acceso', field: 'access', align: 'left' as const }] : []),
+])
 
 const requiredRule = (value: string) => Boolean(value?.trim()) || 'Este campo es obligatorio.'
 const emailRule = (value: string) =>
@@ -113,14 +113,23 @@ async function load(): Promise<void> {
   loading.value = true
   errorMessage.value = ''
   try {
-    const [employees, loadedPositions, branches] = await Promise.all([
-      listEmployees({ page: result.value.page, pageSize: 10, search: search.value || undefined, branchId: props.branchId }),
-      listJobPositions(),
-      listBranches({ page: 1, pageSize: 100, status: 'ACTIVE' }),
-    ])
-    result.value = employees
-    positions.value = loadedPositions
-    availableBranches.value = branches.items
+    if (props.readOnly) {
+      result.value = await listEmployees({
+        page: result.value.page,
+        pageSize: 10,
+        search: search.value || undefined,
+        branchId: props.branchId,
+      })
+    } else {
+      const [employees, loadedPositions, branches] = await Promise.all([
+        listEmployees({ page: result.value.page, pageSize: 10, search: search.value || undefined, branchId: props.branchId }),
+        listJobPositions(),
+        listBranches({ page: 1, pageSize: 100, status: 'ACTIVE' }),
+      ])
+      result.value = employees
+      positions.value = loadedPositions
+      availableBranches.value = branches.items
+    }
   } catch (error) {
     errorMessage.value = getProblem(error)?.detail ?? 'No fue posible cargar los trabajadores.'
   } finally {
@@ -301,10 +310,10 @@ onMounted(load)
     <q-card-section>
       <div class="section-heading workers-heading">
         <q-icon :name="icons.groups" />
-        <div><h2>Trabajadores</h2><p>Personas asignadas a esta sucursal y su acceso administrativo.</p></div>
+        <div><h2>Trabajadores</h2><p>{{ readOnly ? 'Personas asignadas a esta sucursal.' : 'Personas asignadas a esta sucursal y su acceso administrativo.' }}</p></div>
         <q-space />
-        <q-btn v-if="branchActive" outline no-caps color="primary" :icon="icons.personSearch" label="Asignar existente" @click="openDialog('existing')" />
-        <q-btn v-if="branchActive" unelevated no-caps color="primary" :icon="icons.personAdd" label="Nuevo trabajador" @click="openDialog('create')" />
+        <q-btn v-if="branchActive && !readOnly" outline no-caps color="primary" :icon="icons.personSearch" label="Asignar existente" @click="openDialog('existing')" />
+        <q-btn v-if="branchActive && !readOnly" unelevated no-caps color="primary" :icon="icons.personAdd" label="Nuevo trabajador" @click="openDialog('create')" />
       </div>
       <AppAlert v-if="errorMessage" tone="danger">{{ errorMessage }}</AppAlert>
       <SearchField v-model="search" label="Buscar trabajadores" placeholder="Nombre o documento" :loading="loading" class="workers-search" @update:model-value="load" />
@@ -317,7 +326,7 @@ onMounted(load)
     </q-card-section>
   </q-card>
 
-  <AppDialog v-model="dialog" :title="mode === 'create' ? 'Nuevo trabajador' : mode === 'existing' ? 'Asignar trabajador existente' : 'Acceso administrativo'" :description="mode === 'access' ? 'Define las sucursales que puede administrar.' : 'La asignación quedará vinculada a esta sucursal.'" :icon="icons.personAdd" size="lg" :persistent="saving">
+  <AppDialog v-if="!readOnly" v-model="dialog" :title="mode === 'create' ? 'Nuevo trabajador' : mode === 'existing' ? 'Asignar trabajador existente' : 'Acceso administrativo'" :description="mode === 'access' ? 'Define las sucursales que puede administrar.' : 'La asignación quedará vinculada a esta sucursal.'" :icon="icons.personAdd" size="lg" :persistent="saving">
     <AppAlert v-if="dialogError" tone="danger">{{ dialogError }}</AppAlert>
     <template v-if="mode === 'existing' && !selectedEmployee">
       <q-input v-model="candidateSearch" outlined debounce="350" label="Buscar por nombre o documento" @update:model-value="loadCandidates" />
@@ -351,6 +360,7 @@ onMounted(load)
   </AppDialog>
 
   <ConfirmDialog
+    v-if="!readOnly"
     v-model="statusDialog"
     :title="statusEmployee?.administrativeAccess?.accountStatus === 'ACTIVE' ? 'Suspender cuenta' : 'Reactivar cuenta'"
     :message="statusEmployee?.administrativeAccess?.accountStatus === 'ACTIVE'

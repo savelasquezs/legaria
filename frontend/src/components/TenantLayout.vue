@@ -8,6 +8,7 @@ const auth = useAuthStore()
 const roleLabel = computed(() => auth.account?.roles.includes('SUPER_ADMIN') ? 'Superadministrador' : 'Administrador de sucursal')
 const navigation = computed<NavigationItem[]>(() => [
   { label: 'Sucursales', icon: icons.storefront, to: '/app/branches' },
+  { label: 'Documentos', icon: icons.description, to: '/app/document-catalog' },
   ...(auth.account?.roles.includes('SUPER_ADMIN')
     ? [{ label: 'Cargos', icon: icons.groups, to: '/app/job-positions' }]
     : []),

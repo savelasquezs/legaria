@@ -9,7 +9,7 @@ namespace Legaria.API.Controllers;
 
 [ApiController]
 [Route("api/tenant/employees")]
-[Authorize(Policy = AuthorizationPolicies.TenantSuperAdministrator)]
+[Authorize(Policy = AuthorizationPolicies.TenantAdministrator)]
 public sealed class EmployeesController(
     IEmployeeService employeeService,
     ICurrentUser currentUser) : ControllerBase
@@ -36,6 +36,7 @@ public sealed class EmployeesController(
         Ok(await employeeService.GetAsync(id, currentUser.ToCurrentAccount(), cancellationToken));
 
     [HttpPost("/api/tenant/branches/{branchId:guid}/employees")]
+    [Authorize(Policy = AuthorizationPolicies.TenantSuperAdministrator)]
     public async Task<ActionResult<EmployeeDetailResult>> Create(
         Guid branchId,
         CreateEmployeeInputModel input,
@@ -51,6 +52,7 @@ public sealed class EmployeesController(
     }
 
     [HttpPost("/api/tenant/branches/{branchId:guid}/employees/{employeeId:guid}/assignments")]
+    [Authorize(Policy = AuthorizationPolicies.TenantSuperAdministrator)]
     public async Task<ActionResult<EmployeeDetailResult>> Assign(
         Guid branchId,
         Guid employeeId,
@@ -65,6 +67,7 @@ public sealed class EmployeesController(
             cancellationToken));
 
     [HttpPost("{id:guid}/administrative-access")]
+    [Authorize(Policy = AuthorizationPolicies.TenantSuperAdministrator)]
     public async Task<ActionResult<EmployeeDetailResult>> GrantAdministrativeAccess(
         Guid id,
         AdministrativeAccessInputModel input,
@@ -77,6 +80,7 @@ public sealed class EmployeesController(
             cancellationToken));
 
     [HttpPost("{employeeId:guid}/employment-relationships/{relationshipId:guid}/end")]
+    [Authorize(Policy = AuthorizationPolicies.TenantSuperAdministrator)]
     public async Task<ActionResult<EmployeeDetailResult>> EndRelationship(
         Guid employeeId,
         Guid relationshipId,
@@ -91,6 +95,7 @@ public sealed class EmployeesController(
             cancellationToken));
 
     [HttpPost("{employeeId:guid}/assignments/{assignmentId:guid}/end")]
+    [Authorize(Policy = AuthorizationPolicies.TenantSuperAdministrator)]
     public async Task<ActionResult<EmployeeDetailResult>> EndAssignment(
         Guid employeeId,
         Guid assignmentId,
@@ -105,6 +110,7 @@ public sealed class EmployeesController(
             cancellationToken));
 
     [HttpPost("{employeeId:guid}/assignments/{assignmentId:guid}/transition")]
+    [Authorize(Policy = AuthorizationPolicies.TenantSuperAdministrator)]
     public async Task<ActionResult<EmployeeDetailResult>> TransitionAssignment(
         Guid employeeId,
         Guid assignmentId,
@@ -119,6 +125,7 @@ public sealed class EmployeesController(
             cancellationToken));
 
     [HttpPost("{employeeId:guid}/assignments/{assignmentId:guid}/make-primary")]
+    [Authorize(Policy = AuthorizationPolicies.TenantSuperAdministrator)]
     public async Task<ActionResult<EmployeeDetailResult>> MakePrimaryAssignment(
         Guid employeeId,
         Guid assignmentId,
@@ -180,6 +187,26 @@ public sealed class JobPositionsController(
     [HttpPost("{id:guid}/reactivate")]
     public async Task<ActionResult<JobPositionResult>> Reactivate(Guid id, CancellationToken cancellationToken) =>
         Ok(await employeeService.ReactivateJobPositionAsync(id, currentUser.ToCurrentAccount(), cancellationToken));
+
+    [HttpGet("{id:guid}/document-requirements")]
+    public async Task<ActionResult<JobPositionDocumentRequirementsResult>> GetDocumentRequirements(
+        Guid id,
+        CancellationToken cancellationToken) =>
+        Ok(await employeeService.GetJobPositionDocumentRequirementsAsync(
+            id,
+            currentUser.ToCurrentAccount(),
+            cancellationToken));
+
+    [HttpPut("{id:guid}/document-requirements")]
+    public async Task<ActionResult<JobPositionDocumentRequirementsResult>> UpdateDocumentRequirements(
+        Guid id,
+        JobPositionDocumentRequirementsInputModel input,
+        CancellationToken cancellationToken) =>
+        Ok(await employeeService.UpdateJobPositionDocumentRequirementsAsync(
+            id,
+            new JobPositionDocumentRequirementsInput(input.DocumentTypeIds),
+            currentUser.ToCurrentAccount(),
+            cancellationToken));
 }
 
 public sealed record AdministrativeAccessInputModel(
@@ -224,6 +251,9 @@ public sealed record AssignEmployeeInputModel(
 }
 
 public sealed record JobPositionInputModel([Required, MaxLength(150)] string Name);
+
+public sealed record JobPositionDocumentRequirementsInputModel(
+    [Required] IReadOnlyCollection<Guid> DocumentTypeIds);
 
 public sealed record EndEmploymentRelationshipInputModel([Required] DateOnly EndedOn);
 

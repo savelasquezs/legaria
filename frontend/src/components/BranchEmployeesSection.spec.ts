@@ -26,6 +26,7 @@ vi.mock('../services/branches', () => ({
 
 describe('branch employees section', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     vi.mocked(listEmployees).mockResolvedValue({
       items: [],
       page: 1,
@@ -61,5 +62,18 @@ describe('branch employees section', () => {
     const buttonLabels = wrapper.findAll('button').map((button) => button.text())
     expect(buttonLabels).not.toContain('Nuevo trabajador')
     expect(buttonLabels).not.toContain('Asignar existente')
+  })
+
+  it('loads a read-only list without administration catalogs or actions', async () => {
+    const wrapper = mount(BranchEmployeesSection, {
+      props: { branchId: 'branch-1', branchActive: true, readOnly: true },
+    })
+    await flushPromises()
+
+    expect(listEmployees).toHaveBeenCalledWith(expect.objectContaining({ branchId: 'branch-1' }))
+    expect(listJobPositions).not.toHaveBeenCalled()
+    expect(listBranches).not.toHaveBeenCalled()
+    expect(wrapper.text()).not.toContain('Nuevo trabajador')
+    expect(wrapper.text()).not.toContain('Asignar existente')
   })
 })

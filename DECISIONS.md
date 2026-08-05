@@ -148,6 +148,18 @@ Este archivo documenta decisiones duraderas. Agregar una entrada cuando cambie a
 
 **Consecuencia:** una recontratación crea otra relación. Si existe una cuenta `BRANCH_ADMIN`, el retiro la suspende y revoca sesiones e invitaciones sin borrar accesos históricos ni reactivarla automáticamente al recontratar.
 
+## 2026-08-05 — Catálogo documental separado de las evidencias
+
+**Decisión:** `DocumentCategory` y `DocumentType` configuran el catálogo organizacional para alcances `EMPLOYEE` y `BRANCH`, sin crear todavía documentos, archivos ni enlaces concretos.
+
+**Consecuencia:** el catálogo inicia vacío, conserva elementos mediante activación y desactivación y define de forma estable fechas, obligatoriedad, multiplicidad y evidencias permitidas. El alcance disciplinario se agregará únicamente cuando su flujo sea aprobado.
+
+## 2026-08-05 — Requisitos documentales por cargo
+
+**Decisión:** los tipos documentales requeridos por un cargo se configuran mediante una relación explícita multitenant y una selección reemplazable de tipos disponibles con alcance `EMPLOYEE`.
+
+**Consecuencia:** la configuración puede cambiar sin modificar el catálogo ni el historial laboral. El cumplimiento se calculará más adelante uniendo los requisitos globales y los específicos del cargo.
+
 ## Pendientes deliberados
 
 Estas decisiones no están cerradas y no deben inventarse:

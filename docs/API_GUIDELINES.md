@@ -170,6 +170,25 @@ Códigos estables adicionales:
 - `branch_administrator.not_found`, `branch_administrator.already_accepted`, `branch_administrator.invalid_status_transition`.
 - `branch_access.required`, `branch_access.invalid`.
 
+## Catálogo documental tenant
+
+| Método | Ruta | Política |
+| --- | --- | --- |
+| `GET` | `/api/tenant/document-categories` | `SUPER_ADMIN`, `BRANCH_ADMIN` |
+| `POST`, `PUT` | `/api/tenant/document-categories[/{id}]` | `SUPER_ADMIN`; `BRANCH_ADMIN` solo alcance `BRANCH` |
+| `POST` | `/api/tenant/document-categories/{id}/deactivate` y `/reactivate` | misma regla por alcance |
+| `GET` | `/api/tenant/document-types` | `SUPER_ADMIN`, `BRANCH_ADMIN` |
+| `POST`, `PUT` | `/api/tenant/document-types[/{id}]` | `SUPER_ADMIN`; `BRANCH_ADMIN` solo categorías `BRANCH` |
+| `POST` | `/api/tenant/document-types/{id}/deactivate` y `/reactivate` | misma regla por alcance |
+| `GET` | `/api/tenant/job-positions/{id}/document-requirements` | `SUPER_ADMIN` |
+| `PUT` | `/api/tenant/job-positions/{id}/document-requirements` | `SUPER_ADMIN` |
+
+Los listados aceptan `scope=EMPLOYEE|BRANCH|ALL`, `status=ACTIVE|INACTIVE|ALL` y `search`; tipos acepta además `categoryId`. Los resultados se ordenan alfabéticamente. Los nombres son únicos por alcance o categoría según corresponda y no se reciben identificadores de organización.
+
+El tipo documental recibe `categoryId`, nombre, descripción, obligatoriedad, modos de fechas, multiplicidad y `allowedEvidenceKinds`. Los errores estables incluyen `document_category.not_found`, `document_category.duplicate_name`, `document_type.not_found`, `document_type.duplicate_name`, `document_type.inactive_category`, `document_type.scope_mismatch` y `document_catalog.forbidden`.
+
+La configuración documental de un cargo recibe `documentTypeIds` y reemplaza la selección completa. Solo admite tipos disponibles con alcance `EMPLOYEE` del mismo tenant. El listado de cargos incluye `requiredDocumentCount`; una referencia inválida responde con `job_position.invalid_document_requirement`.
+
 ## Idempotencia y concurrencia
 
 No agregar infraestructura genérica de idempotencia. Aplicarla a endpoints que realmente puedan duplicar operaciones sensibles. Usar tokens de concurrencia cuando haya riesgo real de sobrescribir cambios importantes.

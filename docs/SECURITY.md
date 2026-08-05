@@ -82,6 +82,7 @@ La implementación inicial consulta estado, `security_stamp`, roles y organizaci
 - Políticas para permisos generales.
 - Autorización basada en recurso para tenant, sucursal y autoacceso.
 - `BRANCH_ADMIN` no accede a su propio expediente.
+- `BRANCH_ADMIN` solo lista trabajadores con asignación activa en una sucursal autorizada y su detalle se limita a las asignaciones de sucursales autorizadas.
 - 404 puede usarse para evitar revelar recursos fuera del alcance.
 - Un rol nunca reemplaza validación de organización.
 - `OWNER` y `PLATFORM_ADMIN` administran datos de organizaciones; solo `OWNER` puede suspender o reactivar.

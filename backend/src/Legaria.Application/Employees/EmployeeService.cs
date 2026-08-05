@@ -26,9 +26,24 @@ public sealed class EmployeeService(
         CurrentAccount actor,
         CancellationToken cancellationToken)
     {
-        var organizationId = EnsureSuperAdministrator(actor);
+        var organizationId = EnsureTenantAdministrator(actor);
         ValidatePagination(page, pageSize);
+        var isSuperAdministrator = IsSuperAdministrator(actor);
+        if (!isSuperAdministrator && (branchId is null || excludeBranchId is not null))
+        {
+            throw new EmployeeException(
+                EmployeeErrorCodes.Forbidden,
+                "Debes consultar los trabajadores desde una sucursal autorizada.",
+                EmployeeErrorKind.Forbidden);
+        }
+
         if (branchId is { } included && await branchRepository.FindBranchAsync(organizationId, included, cancellationToken) is null)
+        {
+            throw EmployeeNotFound();
+        }
+
+        if (!isSuperAdministrator && branchId is { } assignedBranch &&
+            await branchRepository.FindBranchDetailsAsync(organizationId, assignedBranch, actor.UserId, cancellationToken) is null)
         {
             throw EmployeeNotFound();
         }
@@ -37,12 +52,13 @@ public sealed class EmployeeService(
             organizationId,
             branchId,
             excludeBranchId,
+            isSuperAdministrator ? null : actor.EmployeeId,
             (page - 1) * pageSize,
             pageSize,
             CleanOptional(search, 200),
             cancellationToken);
         return new EmployeePage(
-            items.Select(ToResult).ToArray(),
+            items.Select(item => ToResult(item, isSuperAdministrator, isSuperAdministrator ? null : branchId)).ToArray(),
             page,
             pageSize,
             total,
@@ -51,9 +67,44 @@ public sealed class EmployeeService(
 
     public async Task<EmployeeDetailResult> GetAsync(Guid id, CurrentAccount actor, CancellationToken cancellationToken)
     {
-        var organizationId = EnsureSuperAdministrator(actor);
-        return ToDetailResult(await repository.FindEmploymentDetailsAsync(organizationId, id, cancellationToken)
-            ?? throw EmployeeNotFound());
+        var organizationId = EnsureTenantAdministrator(actor);
+        if (!IsSuperAdministrator(actor) && actor.EmployeeId == id)
+        {
+            throw new EmployeeException(
+                EmployeeErrorCodes.Forbidden,
+                "No puedes consultar tu propio expediente laboral.",
+                EmployeeErrorKind.Forbidden);
+        }
+
+        var detail = await repository.FindEmploymentDetailsAsync(organizationId, id, cancellationToken)
+            ?? throw EmployeeNotFound();
+        if (IsSuperAdministrator(actor))
+        {
+            return ToDetailResult(detail);
+        }
+
+        var branchIds = (await branchRepository.FindActiveAccessesAsync(
+            organizationId,
+            actor.UserId,
+            cancellationToken)).Select(item => item.BranchId).ToHashSet();
+        if (!detail.Relationships.SelectMany(item => item.Assignments).Any(item =>
+                item.Assignment.EndedOn is null && branchIds.Contains(item.Assignment.BranchId)))
+        {
+            throw EmployeeNotFound();
+        }
+
+        var visibleRelationships = detail.Relationships
+            .Select(relationship => new EmploymentRelationshipQueryItem(
+                relationship.Relationship,
+                relationship.Assignments.Where(item => branchIds.Contains(item.Assignment.BranchId)).ToArray()))
+            .Where(relationship => relationship.Assignments.Count > 0)
+            .ToArray();
+        return ToDetailResult(new EmployeeDetailQueryItem(
+            detail.Employee,
+            visibleRelationships,
+            null,
+            null,
+            []));
     }
 
     public async Task<EmployeeDetailResult> CreateAsync(
@@ -235,7 +286,7 @@ public sealed class EmployeeService(
     {
         var organizationId = EnsureSuperAdministrator(actor);
         return (await repository.ListJobPositionsAsync(organizationId, ParsePositionStatus(status), cancellationToken))
-            .Select(ToPositionResult)
+            .Select(item => ToPositionResult(item.JobPosition, item.RequiredDocumentCount))
             .ToArray();
     }
 
@@ -254,7 +305,7 @@ public sealed class EmployeeService(
         var position = JobPosition.Create(organizationId, name, normalizedName, clock.UtcNow);
         repository.AddJobPosition(position);
         await repository.SaveChangesAsync(cancellationToken);
-        return ToPositionResult(position);
+        return ToPositionResult(position, 0);
     }
 
     public async Task<JobPositionResult> UpdateJobPositionAsync(
@@ -278,7 +329,9 @@ public sealed class EmployeeService(
         }
 
         await repository.SaveChangesAsync(cancellationToken);
-        return ToPositionResult(position);
+        return ToPositionResult(
+            position,
+            await repository.CountJobPositionDocumentRequirementsAsync(organizationId, position.Id, cancellationToken));
     }
 
     public Task<JobPositionResult> DeactivateJobPositionAsync(
@@ -292,6 +345,48 @@ public sealed class EmployeeService(
         CurrentAccount actor,
         CancellationToken cancellationToken) =>
         ChangePositionStatusAsync(id, false, actor, cancellationToken);
+
+    public async Task<JobPositionDocumentRequirementsResult> GetJobPositionDocumentRequirementsAsync(
+        Guid id,
+        CurrentAccount actor,
+        CancellationToken cancellationToken)
+    {
+        var organizationId = EnsureSuperAdministrator(actor);
+        _ = await repository.FindJobPositionAsync(organizationId, id, cancellationToken)
+            ?? throw PositionNotFound();
+        return new JobPositionDocumentRequirementsResult(
+            id,
+            await repository.ListJobPositionDocumentRequirementIdsAsync(organizationId, id, cancellationToken));
+    }
+
+    public async Task<JobPositionDocumentRequirementsResult> UpdateJobPositionDocumentRequirementsAsync(
+        Guid id,
+        JobPositionDocumentRequirementsInput input,
+        CurrentAccount actor,
+        CancellationToken cancellationToken)
+    {
+        var organizationId = EnsureSuperAdministrator(actor);
+        _ = await repository.FindJobPositionAsync(organizationId, id, cancellationToken)
+            ?? throw PositionNotFound();
+        var documentTypeIds = (input.DocumentTypeIds ?? [])
+            .Distinct()
+            .ToArray();
+        if (documentTypeIds.Any(documentTypeId => documentTypeId == Guid.Empty) ||
+            !await repository.AreAvailableEmployeeDocumentTypesAsync(organizationId, documentTypeIds, cancellationToken))
+        {
+            throw new EmployeeException(
+                EmployeeErrorCodes.InvalidDocumentRequirement,
+                "Solo puedes exigir tipos de documento activos para trabajadores y pertenecientes a la organización.");
+        }
+
+        await repository.ReplaceJobPositionDocumentRequirementsAsync(
+            organizationId,
+            id,
+            documentTypeIds,
+            cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
+        return new JobPositionDocumentRequirementsResult(id, documentTypeIds);
+    }
 
     public async Task<EmployeeDetailResult> EndRelationshipAsync(
         Guid employeeId,
@@ -500,7 +595,9 @@ public sealed class EmployeeService(
         }
 
         await repository.SaveChangesAsync(cancellationToken);
-        return ToPositionResult(position);
+        return ToPositionResult(
+            position,
+            await repository.CountJobPositionDocumentRequirementsAsync(organizationId, position.Id, cancellationToken));
     }
 
     private async Task<ProvisionedAccess> ProvisionAdministrativeAccessAsync(
@@ -622,14 +719,18 @@ public sealed class EmployeeService(
         return branches;
     }
 
-    private EmployeeResult ToResult(EmployeeQueryItem item) =>
+    private EmployeeResult ToResult(
+        EmployeeQueryItem item,
+        bool includeAdministrativeAccess,
+        Guid? visibleBranchId) =>
         new(
             item.Employee.Id,
             item.Employee.DocumentType,
             item.Employee.DocumentNumber,
             item.Employee.FirstName,
             item.Employee.LastName,
-            item.Assignments.Select(assignment => new EmployeeAssignmentResult(
+            item.Assignments.Where(assignment => visibleBranchId is null || assignment.Branch.Id == visibleBranchId)
+                .Select(assignment => new EmployeeAssignmentResult(
                 assignment.Assignment.Id,
                 assignment.Assignment.EmploymentRelationshipId,
                 assignment.Branch.Id,
@@ -640,7 +741,7 @@ public sealed class EmployeeService(
                 assignment.Assignment.StartedOn,
                 assignment.Assignment.EndedOn,
                 assignment.Assignment.EndedOn is null ? "ACTIVE" : "ENDED")).ToArray(),
-            item.Account is null ? null : new EmployeeAdministrativeAccessResult(
+            !includeAdministrativeAccess || item.Account is null ? null : new EmployeeAdministrativeAccessResult(
                 item.Account.Id,
                 item.Account.Email,
                 item.Account.Status == AccountStatus.Active ? "ACTIVE" : "SUSPENDED",
@@ -683,8 +784,12 @@ public sealed class EmployeeService(
             item.Employee.CreatedAt,
             item.Employee.UpdatedAt);
 
-    private static JobPositionResult ToPositionResult(JobPosition position) =>
-        new(position.Id, position.Name, position.Status == JobPositionStatus.Active ? "ACTIVE" : "INACTIVE");
+    private static JobPositionResult ToPositionResult(JobPosition position, int requiredDocumentCount) =>
+        new(
+            position.Id,
+            position.Name,
+            position.Status == JobPositionStatus.Active ? "ACTIVE" : "INACTIVE",
+            requiredDocumentCount);
 
     private static JobPositionStatus? ParsePositionStatus(string? value) => value?.Trim().ToUpperInvariant() switch
     {
@@ -736,6 +841,21 @@ public sealed class EmployeeService(
 
         return organizationId;
     }
+
+    private static Guid EnsureTenantAdministrator(CurrentAccount actor)
+    {
+        if (actor.AccountType != AccountType.Tenant ||
+            actor.OrganizationId is not { } organizationId ||
+            !actor.Roles.Any(role => role is SystemRoleCodes.SuperAdmin or SystemRoleCodes.BranchAdmin))
+        {
+            throw new EmployeeException(EmployeeErrorCodes.Forbidden, "No tienes permiso para consultar trabajadores.", EmployeeErrorKind.Forbidden);
+        }
+
+        return organizationId;
+    }
+
+    private static bool IsSuperAdministrator(CurrentAccount actor) =>
+        actor.Roles.Contains(SystemRoleCodes.SuperAdmin);
 
     private static string CleanRequired(string? value, int maximumLength, string field)
     {
