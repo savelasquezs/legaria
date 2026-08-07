@@ -200,3 +200,19 @@ La carga usa `multipart/form-data` con `documentTypeId`, fechas opcionales, `fil
 ## Idempotencia y concurrencia
 
 No agregar infraestructura genérica de idempotencia. Aplicarla a endpoints que realmente puedan duplicar operaciones sensibles. Usar tokens de concurrencia cuando haya riesgo real de sobrescribir cambios importantes.
+
+## Notificaciones WhatsApp tenant
+
+| Método | Ruta | Política |
+| --- | --- | --- |
+| `GET`, `POST`, `PUT` | `/api/tenant/whatsapp-channels[/{id}]` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/whatsapp-channels/{id}/activate`, `/deactivate`, `/test`, `/sync-templates` | `SUPER_ADMIN` |
+| `GET` | `/api/tenant/whatsapp-templates` | `SUPER_ADMIN` |
+| `GET`, `POST`, `PUT` | `/api/tenant/notification-rules[/{id}]` | `SUPER_ADMIN` |
+| `POST` | `/api/tenant/notification-rules/{id}/activate`, `/deactivate` | `SUPER_ADMIN` |
+| `GET` | `/api/tenant/notification-events`, `/notification-queue` | `SUPER_ADMIN` |
+| `GET`, `PUT` | `/api/tenant/me/notification-contact` | administrador tenant sobre su cuenta |
+| `GET`, `PUT` | `/api/tenant/notification-settings` | `SUPER_ADMIN` |
+| `GET`, `POST` | `/api/webhooks/whatsapp` | público con token o firma de Meta |
+
+Los secretos son de solo escritura. Recursos de otro tenant responden `404` y `BRANCH_ADMIN` recibe `403` en administración.

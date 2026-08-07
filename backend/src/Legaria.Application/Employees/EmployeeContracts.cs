@@ -12,7 +12,10 @@ public sealed record CreateEmployeeInput(
     Guid JobPositionId,
     DateOnly StartedOn,
     bool IsPrimary,
-    AdministrativeAccessInput? AdministrativeAccess);
+    AdministrativeAccessInput? AdministrativeAccess,
+    string? MobilePhone = null,
+    string? ContactEmail = null,
+    bool WhatsAppConsent = false);
 
 public sealed record AssignEmployeeInput(
     Guid JobPositionId,
@@ -53,6 +56,9 @@ public sealed record EmployeeResult(
     string DocumentNumber,
     string FirstName,
     string LastName,
+    string? MobilePhone,
+    string? ContactEmail,
+    DateTimeOffset? WhatsAppConsentAt,
     IReadOnlyCollection<EmployeeAssignmentResult> Assignments,
     EmployeeAdministrativeAccessResult? AdministrativeAccess,
     DateTimeOffset CreatedAt,
@@ -64,6 +70,9 @@ public sealed record EmployeeDetailResult(
     string DocumentNumber,
     string FirstName,
     string LastName,
+    string? MobilePhone,
+    string? ContactEmail,
+    DateTimeOffset? WhatsAppConsentAt,
     IReadOnlyCollection<EmploymentRelationshipResult> EmploymentRelationships,
     EmployeeAdministrativeAccessResult? AdministrativeAccess,
     DateTimeOffset CreatedAt,
@@ -86,6 +95,8 @@ public sealed record TransitionEmployeeAssignmentInput(
     Guid BranchId,
     Guid JobPositionId,
     DateOnly EffectiveOn);
+
+public sealed record EmployeeNotificationContactInput(string? MobilePhone, string? ContactEmail, bool WhatsAppConsent);
 
 public sealed record JobPositionResult(
     Guid Id,

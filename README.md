@@ -90,3 +90,9 @@ Las pruebas de integración requieren un motor Docker operativo para crear Postg
 ## Documentación obligatoria
 
 Antes de modificar el sistema, leer `AGENTS.md`, `BUSINESS_RULES.md` y los documentos relacionados en `docs/`.
+
+## WhatsApp Cloud local
+
+Define `INTEGRATIONS_ENCRYPTION_KEY` con al menos 32 caracteres aleatorios y, si corresponde, `WHATSAPP_GRAPH_API_VERSION`. El callback de Meta es `/api/webhooks/whatsapp`; la verificación usa el token del canal y los estados requieren el App Secret.
+
+Las plantillas se crean y aprueban exclusivamente en Meta y luego se sincronizan desde **Notificaciones**. Las migraciones se ejecutan antes de iniciar la API.

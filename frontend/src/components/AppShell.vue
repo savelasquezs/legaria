@@ -16,7 +16,9 @@ defineProps<{
   contextLabel: string
   roleLabel: string
   navigation: NavigationItem[]
+  notificationContact?: boolean
 }>()
+const emit = defineEmits<{ notificationContact: [] }>()
 
 const route = useRoute()
 const router = useRouter()
@@ -80,6 +82,9 @@ async function logout(): Promise<void> {
             <strong>{{ userName }}</strong>
             <span>{{ roleLabel }}</span>
           </div>
+          <q-btn v-if="notificationContact" flat round dense :icon="icons.phone" aria-label="Configurar mi WhatsApp" @click="emit('notificationContact')">
+            <q-tooltip>Configurar mi WhatsApp</q-tooltip>
+          </q-btn>
           <q-btn flat round dense :icon="icons.logout" aria-label="Cerrar sesión" :loading="loggingOut" @click="logout">
             <q-tooltip>Cerrar sesión</q-tooltip>
           </q-btn>

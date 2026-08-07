@@ -217,3 +217,19 @@ Las reglas definitivas de renovación, firma, modificación y terminación aún 
 15. Cinco fallos de login bloquean la cuenta durante 15 minutos.
 16. `account_emails` reserva de forma central y transaccional el correo normalizado de toda cuenta de plataforma o tenant.
 17. Las invitaciones tenant almacenan únicamente SHA-256 del token y exponen `PENDING_DELIVERY`, `SENT`, `DELIVERY_FAILED`, `EXPIRED`, `ACCEPTED` o `REVOKED`.
+
+## Notificaciones documentales
+
+1. Solo `SUPER_ADMIN` administra canales, plantillas sincronizadas, reglas y auditoría de envíos.
+2. La primera versión solo envía WhatsApp para `DOCUMENT_EXPIRING`; Legaria no crea plantillas en Meta.
+3. Cada alerta pertenece a un tipo documental de trabajador que permita vencimiento y define entre una y tres anticipaciones en días, semanas o meses calendario.
+4. Solo participan versiones vigentes, no reemplazadas, con vencimiento y trabajador con relación laboral activa.
+5. El administrador de sucursal se resuelve desde la asignación principal activa; se incluyen todas las cuentas `SUPER_ADMIN` activas cuando ese destinatario esté seleccionado.
+6. Trabajadores y cuentas administrativas requieren teléfono E.164 y autorización registrada. Sin ambos, la omisión se conserva en la auditoría.
+7. Los destinos repetidos se consolidan dentro del mismo evento.
+8. Las variables de Meta se mapean exclusivamente a variables disponibles del evento; no se admite texto libre.
+9. Una plantilla debe estar disponible y `APPROVED`. Cambiar su contenido o estado bloquea nuevos envíos hasta actualizar la regla.
+10. Al activar una regla dentro de una ventana iniciada se recupera únicamente el umbral vencido más cercano.
+11. Reemplazar el documento, finalizar la relación, revocar el consentimiento, desactivar la regla o desconectar el canal cancela envíos pendientes.
+12. `SENT` significa que Meta aceptó el mensaje; entrega, lectura o fallo posterior se registran por webhook sin reenviar automáticamente.
+13. Editar las anticipaciones de una alerta desactiva la configuración anterior sin eliminarla, para conservar los eventos históricos que la referencian.

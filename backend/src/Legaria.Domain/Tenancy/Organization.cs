@@ -17,6 +17,8 @@ public sealed class Organization
     public string Phone { get; private set; } = string.Empty;
     public string Address { get; private set; } = string.Empty;
     public string MunicipalityCode { get; private set; } = string.Empty;
+    public string TimeZoneId { get; private set; } = "America/Bogota";
+    public TimeOnly NotificationTime { get; private set; } = new(8, 0);
     public OrganizationStatus Status { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -93,5 +95,12 @@ public sealed class Organization
         Status = OrganizationStatus.Active;
         UpdatedAt = now;
         return true;
+    }
+
+    public void UpdateNotificationSettings(string timeZoneId, TimeOnly notificationTime, DateTimeOffset now)
+    {
+        TimeZoneId = timeZoneId;
+        NotificationTime = notificationTime;
+        UpdatedAt = now;
     }
 }

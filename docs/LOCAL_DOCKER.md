@@ -25,7 +25,7 @@ La API no aplica migraciones. Antes del bootstrap verifica que el esquema esté 
 powershell -ExecutionPolicy Bypass -File scripts/setup-local.ps1
 ```
 
-El script genera una clave JWT aleatoria y una contraseña aleatoria para el
+El script genera claves aleatorias para JWT e integraciones y una contraseña aleatoria para el
 certificado cuando encuentra `__GENERATE__`, las guarda únicamente en `.env`,
 genera el PFX ignorado en `.local/https`, confía el certificado de desarrollo y
 levanta los contenedores.
@@ -64,6 +64,10 @@ código cero. La API no aplica migraciones por sí misma.
 ## Firebase Storage
 
 Configurar `FIREBASE_STORAGE_BUCKET` en `.env`. Por defecto Docker monta `../firebase_secret.json` como credencial privada; otra ubicación puede indicarse mediante `FIREBASE_CREDENTIALS_PATH`. El JSON nunca debe copiarse ni confirmarse dentro de Legaria.
+
+## WhatsApp Cloud
+
+`INTEGRATIONS_ENCRYPTION_KEY` debe permanecer estable porque protege Access Token y App Secret con AES-GCM. `setup-local.ps1` la genera si falta o conserva el marcador de `.env.example`. Cambiarla exige volver a guardar las credenciales de cada canal. La versión de Graph API se configura con `WHATSAPP_GRAPH_API_VERSION`.
 
 ## Acceso a PostgreSQL
 

@@ -17,6 +17,8 @@ public sealed class UserAccount
     public string PasswordHash { get; private set; } = string.Empty;
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
+    public string? MobilePhone { get; private set; }
+    public DateTimeOffset? WhatsAppConsentAt { get; private set; }
     public AccountStatus Status { get; private set; }
     public DateTimeOffset? EmailVerifiedAt { get; private set; }
     public string SecurityStamp { get; private set; } = string.Empty;
@@ -158,6 +160,15 @@ public sealed class UserAccount
         FirstName = firstName;
         LastName = lastName;
         SecurityStamp = securityStamp;
+        UpdatedAt = now;
+    }
+
+    public void UpdateNotificationContact(string? mobilePhone, bool whatsappConsent, DateTimeOffset now)
+    {
+        MobilePhone = mobilePhone;
+        WhatsAppConsentAt = whatsappConsent && mobilePhone is not null
+            ? WhatsAppConsentAt ?? now
+            : null;
         UpdatedAt = now;
     }
 }

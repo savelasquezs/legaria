@@ -144,3 +144,7 @@ Registrar eventos de seguridad con IDs internos, fecha, IP normalizada y resulta
 - HTTPS obligatorio en producción.
 - Swagger restringido o deshabilitado según ambiente.
 - Cabeceras de seguridad en frontend y API cuando correspondan.
+- Access Token y App Secret de Meta se cifran con AES-GCM mediante `Integrations__EncryptionKey`; el Verify Token solo se guarda como hash.
+- La API nunca devuelve secretos guardados y sanitiza las respuestas del proveedor.
+- El webhook limita tamaño y frecuencia, valida `X-Hub-Signature-256` en tiempo constante y no procesa mensajes entrantes.
+- Los teléfonos usan formato E.164 y requieren autorización fechada antes de enviar.

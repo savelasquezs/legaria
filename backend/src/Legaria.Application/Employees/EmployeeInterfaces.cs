@@ -81,6 +81,7 @@ public interface IEmployeeService
 {
     Task<EmployeePage> ListAsync(int page, int pageSize, string? search, Guid? branchId, Guid? excludeBranchId, CurrentAccount actor, CancellationToken cancellationToken);
     Task<EmployeeDetailResult> GetAsync(Guid id, CurrentAccount actor, CancellationToken cancellationToken);
+    Task<EmployeeDetailResult> UpdateNotificationContactAsync(Guid id, EmployeeNotificationContactInput input, CurrentAccount actor, CancellationToken cancellationToken);
     Task<EmployeeDetailResult> CreateAsync(Guid branchId, CreateEmployeeInput input, CurrentAccount actor, ClientContext client, CancellationToken cancellationToken);
     Task<EmployeeDetailResult> AssignAsync(Guid branchId, Guid employeeId, AssignEmployeeInput input, CurrentAccount actor, ClientContext client, CancellationToken cancellationToken);
     Task<EmployeeDetailResult> GrantAdministrativeAccessAsync(Guid employeeId, AdministrativeAccessInput input, CurrentAccount actor, ClientContext client, CancellationToken cancellationToken);

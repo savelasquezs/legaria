@@ -58,6 +58,9 @@ const form = reactive({
   documentNumber: '',
   firstName: '',
   lastName: '',
+  mobilePhone: '',
+  contactEmail: '',
+  whatsAppConsent: false,
   jobPositionId: '',
   startedOn: today,
   isPrimary: true,
@@ -160,6 +163,9 @@ function resetForm(): void {
     documentNumber: '',
     firstName: '',
     lastName: '',
+    mobilePhone: '',
+    contactEmail: '',
+    whatsAppConsent: false,
     jobPositionId: positions.value[0]?.id ?? '',
     startedOn: today,
     isPrimary: true,
@@ -282,6 +288,9 @@ async function save(): Promise<void> {
         startedOn: form.startedOn,
         isPrimary: form.isPrimary,
         administrativeAccess,
+        mobilePhone: form.mobilePhone.trim() || null,
+        contactEmail: form.contactEmail.trim() || null,
+        whatsAppConsent: form.whatsAppConsent,
       })
       Notify.create({ type: 'positive', message: 'Trabajador creado y asignado.' })
     } else if (selectedEmployee.value) {
@@ -344,7 +353,10 @@ onMounted(load)
         <q-input v-model="form.documentNumber" outlined label="Número de documento" :rules="[requiredRule]" />
         <q-input v-model="form.firstName" outlined label="Nombres" :rules="[requiredRule]" />
         <q-input v-model="form.lastName" outlined label="Apellidos" :rules="[requiredRule]" />
+        <q-input v-model="form.mobilePhone" outlined label="WhatsApp" hint="Formato +573001234567" />
+        <q-input v-model="form.contactEmail" outlined type="email" label="Correo de contacto" />
       </div>
+      <q-checkbox v-if="mode === 'create'" v-model="form.whatsAppConsent" label="Autoriza notificaciones por WhatsApp" />
       <AssignmentFields v-if="mode !== 'access'" v-model:job-position-id="form.jobPositionId" v-model:started-on="form.startedOn" :positions="positions" :max-date="today" :show-primary="false" class="q-mt-md" />
       <div v-if="mode !== 'access'" class="inline-position"><q-input v-model="newPositionName" outlined dense label="Crear otro cargo" /><q-btn outline no-caps color="primary" label="Agregar cargo" :loading="creatingPosition" @click="addPosition" /></div>
       <q-checkbox v-if="mode !== 'access'" v-model="form.isPrimary" label="Asignación principal" />

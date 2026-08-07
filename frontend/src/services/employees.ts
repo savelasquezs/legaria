@@ -56,6 +56,15 @@ export async function getEmployee(employeeId: string): Promise<EmployeeDetail> {
   return data
 }
 
+export async function updateEmployeeNotificationContact(employeeId: string, input: {
+  mobilePhone: string | null
+  contactEmail: string | null
+  whatsAppConsent: boolean
+}): Promise<EmployeeDetail> {
+  const { data } = await api.put<EmployeeDetail>(`/api/tenant/employees/${employeeId}/notification-contact`, input)
+  return data
+}
+
 export async function listJobPositions(status: 'ACTIVE' | 'INACTIVE' | 'ALL' = 'ACTIVE'): Promise<JobPosition[]> {
   const { data } = await api.get<JobPosition[]>('/api/tenant/job-positions', { params: { status } })
   return data

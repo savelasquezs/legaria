@@ -59,10 +59,11 @@ if (-not (Test-Path -LiteralPath $environmentPath) -or
 
 $environment = Read-DotEnv $environmentPath
 $generatedSecret = $false
-foreach ($secretVariable in @('JWT_SIGNING_KEY', 'CERT_PASSWORD')) {
+$secretVariables = @('JWT_SIGNING_KEY', 'CERT_PASSWORD', 'INTEGRATIONS_ENCRYPTION_KEY')
+foreach ($secretVariable in $secretVariables) {
     if (-not $environment.ContainsKey($secretVariable) -or
         [string]::IsNullOrWhiteSpace($environment[$secretVariable]) -or
-        $environment[$secretVariable] -eq '__GENERATE__') {
+        $environment[$secretVariable].StartsWith('__GENERATE')) {
         $byteCount = if ($secretVariable -eq 'JWT_SIGNING_KEY') { 48 } else { 32 }
         $environment[$secretVariable] = New-RandomBase64 $byteCount
         $generatedSecret = $true
@@ -71,19 +72,26 @@ foreach ($secretVariable in @('JWT_SIGNING_KEY', 'CERT_PASSWORD')) {
 
 if ($generatedSecret) {
     $existingLines = Get-Content -LiteralPath $environmentPath
+    $writtenSecrets = @{}
     $updatedLines = foreach ($line in $existingLines) {
         $separatorIndex = $line.IndexOf('=')
         $name = if ($separatorIndex -gt 0) { $line.Substring(0, $separatorIndex) } else { $line }
-        if ($name -in @('JWT_SIGNING_KEY', 'CERT_PASSWORD')) {
+        if ($name -in $secretVariables) {
+            $writtenSecrets[$name] = $true
             "$name=$($environment[$name])"
         }
         else {
             $line
         }
     }
+    foreach ($secretVariable in $secretVariables) {
+        if (-not $writtenSecrets.ContainsKey($secretVariable)) {
+            $updatedLines += "$secretVariable=$($environment[$secretVariable])"
+        }
+    }
     $utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllLines($environmentPath, $updatedLines, $utf8WithoutBom)
-    Write-Host 'Los secretos aleatorios de JWT y certificado se generaron dentro de .env y no se muestran.'
+    Write-Host 'Los secretos aleatorios de JWT, integraciones y certificado se generaron dentro de .env y no se muestran.'
 }
 
 $requiredVariables = @(
@@ -95,6 +103,7 @@ $requiredVariables = @(
     'JWT_ISSUER',
     'JWT_AUDIENCE',
     'JWT_SIGNING_KEY',
+    'INTEGRATIONS_ENCRYPTION_KEY',
     'CERT_PASSWORD',
     'RESEND_API_KEY',
     'RESEND_FROM_EMAIL',
@@ -116,6 +125,9 @@ foreach ($requiredVariable in $requiredVariables) {
 
 if ([Text.Encoding]::UTF8.GetByteCount($environment['JWT_SIGNING_KEY']) -lt 32) {
     throw 'JWT_SIGNING_KEY debe tener al menos 32 bytes.'
+}
+if ([Text.Encoding]::UTF8.GetByteCount($environment['INTEGRATIONS_ENCRYPTION_KEY']) -lt 32) {
+    throw 'INTEGRATIONS_ENCRYPTION_KEY debe tener al menos 32 bytes.'
 }
 
 $apiHttpsPort = if ($environment.ContainsKey('API_HTTPS_PORT')) {
@@ -158,4 +170,4 @@ Write-Host '  Frontend: https://localhost:5173'
 Write-Host "  API: https://localhost:$apiHttpsPort"
 Write-Host "  PostgreSQL: localhost:$($environment['POSTGRES_PORT']) / legaria / legaria_local"
 Write-Host "  Usuario: $($environment['BOOTSTRAP_OWNER_EMAIL'])"
-Write-Host 'La clave JWT y la contrasena del certificado permanecen solo en .env.'
+Write-Host 'Las claves JWT, de integraciones y la contrasena del certificado permanecen solo en .env.'

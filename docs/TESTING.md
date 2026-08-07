@@ -89,3 +89,5 @@ Codex debe indicar:
 - verificaciones que no pudo ejecutar y motivo.
 
 Nunca afirmar que compiló o pasó pruebas sin haber ejecutado los comandos.
+
+Las notificaciones deben cubrir cifrado, aislamiento tenant, variables de plantillas, anticipaciones calendario, consentimiento, deduplicación, reintentos, concurrencia y firma e idempotencia del webhook. Las pruebas sustituyen siempre al proveedor de Meta.

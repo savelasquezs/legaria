@@ -66,6 +66,13 @@ public sealed class EmployeesController(
             Client(),
             cancellationToken));
 
+    [HttpPut("{id:guid}/notification-contact")]
+    [Authorize(Policy = AuthorizationPolicies.TenantSuperAdministrator)]
+    public async Task<ActionResult<EmployeeDetailResult>> UpdateNotificationContact(
+        Guid id, EmployeeNotificationContactInputModel input, CancellationToken cancellationToken) =>
+        Ok(await employeeService.UpdateNotificationContactAsync(id, new(input.MobilePhone, input.ContactEmail, input.WhatsAppConsent),
+            currentUser.ToCurrentAccount(), cancellationToken));
+
     [HttpPost("{id:guid}/administrative-access")]
     [Authorize(Policy = AuthorizationPolicies.TenantSuperAdministrator)]
     public async Task<ActionResult<EmployeeDetailResult>> GrantAdministrativeAccess(
@@ -224,7 +231,10 @@ public sealed record CreateEmployeeInputModel(
     [Required] Guid JobPositionId,
     [Required] DateOnly StartedOn,
     bool IsPrimary,
-    AdministrativeAccessInputModel? AdministrativeAccess)
+    AdministrativeAccessInputModel? AdministrativeAccess,
+    [MaxLength(16)] string? MobilePhone,
+    [EmailAddress, MaxLength(320)] string? ContactEmail,
+    bool WhatsAppConsent)
 {
     public CreateEmployeeInput ToRequest() => new(
         DocumentType,
@@ -234,7 +244,10 @@ public sealed record CreateEmployeeInputModel(
         JobPositionId,
         StartedOn,
         IsPrimary,
-        AdministrativeAccess?.ToRequest());
+        AdministrativeAccess?.ToRequest(),
+        MobilePhone,
+        ContactEmail,
+        WhatsAppConsent);
 }
 
 public sealed record AssignEmployeeInputModel(
@@ -258,6 +271,8 @@ public sealed record JobPositionDocumentRequirementsInputModel(
 public sealed record EndEmploymentRelationshipInputModel([Required] DateOnly EndedOn);
 
 public sealed record EndEmployeeAssignmentInputModel([Required] DateOnly EndedOn);
+public sealed record EmployeeNotificationContactInputModel([MaxLength(16)] string? MobilePhone,
+    [EmailAddress, MaxLength(320)] string? ContactEmail, bool WhatsAppConsent);
 
 public sealed record TransitionEmployeeAssignmentInputModel(
     [Required] Guid BranchId,

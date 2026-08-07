@@ -65,6 +65,8 @@ services:
       Resend__ReplyToEmail: ${RESEND_REPLY_TO_EMAIL}
       Frontend__BaseUrl: ${FRONTEND_BASE_URL}
       FIREBASE_STORAGE_BUCKET: ${FIREBASE_STORAGE_BUCKET}
+      Integrations__EncryptionKey: ${INTEGRATIONS_ENCRYPTION_KEY}
+      WhatsAppCloud__GraphApiVersion: ${WHATSAPP_GRAPH_API_VERSION:-v23.0}
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase.json
       BootstrapOwner__Email: ${BOOTSTRAP_OWNER_EMAIL}
       BootstrapOwner__Password: ${BOOTSTRAP_OWNER_PASSWORD}

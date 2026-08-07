@@ -12,11 +12,13 @@ using Legaria.Application.Configuration;
 using Legaria.Application.Employees;
 using Legaria.Application.Documents;
 using Legaria.Application.Organizations;
+using Legaria.Application.Notifications;
 using Legaria.Domain.Authentication;
 using Legaria.Infrastructure.Authentication;
 using Legaria.Infrastructure.Email;
 using Legaria.Infrastructure.Persistence;
 using Legaria.Infrastructure.Storage;
+using Legaria.Infrastructure.Notifications;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
@@ -97,11 +99,25 @@ if (authenticationOptions.RefreshTokenDays != 7 ||
         "verificación 24 horas y reset 30 minutos.");
 }
 
+if (Encoding.UTF8.GetByteCount(builder.Configuration["Integrations:EncryptionKey"] ?? string.Empty) < 32)
+{
+    throw new InvalidOperationException("Integrations__EncryptionKey debe tener al menos 32 bytes para proteger credenciales externas.");
+}
+
+var whatsAppOptions = builder.Configuration.GetSection(WhatsAppCloudOptions.SectionName).Get<WhatsAppCloudOptions>()
+    ?? new WhatsAppCloudOptions();
+if (!Uri.TryCreate(whatsAppOptions.BaseUrl, UriKind.Absolute, out var whatsAppBaseUri) || whatsAppBaseUri.Scheme != "https" ||
+    string.IsNullOrWhiteSpace(whatsAppOptions.GraphApiVersion) || whatsAppOptions.TimeoutSeconds is < 5 or > 60)
+{
+    throw new InvalidOperationException("WhatsAppCloud requiere BaseUrl HTTPS, GraphApiVersion y TimeoutSeconds entre 5 y 60.");
+}
+
 builder.Services.AddSingleton(jwtOptions);
 builder.Services.AddSingleton(resendOptions);
 builder.Services.AddSingleton(frontendOptions);
 builder.Services.AddSingleton(bootstrapOptions);
 builder.Services.AddSingleton(authenticationOptions);
+builder.Services.Configure<WhatsAppCloudOptions>(builder.Configuration.GetSection(WhatsAppCloudOptions.SectionName));
 builder.Services.Configure<FirebaseStorageOptions>(options =>
 {
     options.Bucket = builder.Configuration["FIREBASE_STORAGE_BUCKET"]
@@ -119,6 +135,11 @@ builder.Services.AddDbContext<LegariaDbContext>(options =>
 builder.Services.Configure<ResendClientOptions>(options => options.ApiToken = resendOptions.ApiKey);
 builder.Services.AddHttpClient<ResendClient>(client => client.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddTransient<IResend, ResendClient>();
+builder.Services.AddHttpClient<IWhatsAppCloudClient, WhatsAppCloudClient>(client =>
+{
+    client.BaseAddress = whatsAppBaseUri;
+    client.Timeout = TimeSpan.FromSeconds(whatsAppOptions.TimeoutSeconds);
+});
 
 builder.Services.AddSingleton<IPasswordService, PasswordService>();
 builder.Services.AddSingleton<IEmailNormalizer, EmailNormalizer>();
@@ -135,6 +156,7 @@ builder.Services.AddScoped<IBranchRepository, BranchRepository>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<IDocumentCatalogRepository, DocumentCatalogRepository>();
 builder.Services.AddScoped<IEmployeeDocumentRepository, EmployeeDocumentRepository>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<ITenantInvitationService, TenantInvitationService>();
@@ -142,6 +164,12 @@ builder.Services.AddScoped<IBranchService, BranchService>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddScoped<IDocumentCatalogService, DocumentCatalogService>();
 builder.Services.AddScoped<IEmployeeDocumentService, EmployeeDocumentService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<INotificationService>(services => services.GetRequiredService<NotificationService>());
+builder.Services.AddSingleton<IIntegrationSecretProtector, IntegrationSecretProtector>();
+builder.Services.AddScoped<IWhatsAppWebhookService, WhatsAppWebhookService>();
+builder.Services.AddScoped<NotificationProcessor>();
+builder.Services.AddHostedService<NotificationWorker>();
 builder.Services.AddSingleton<IEmployeeDocumentStorage, FirebaseEmployeeDocumentStorage>();
 builder.Services.AddScoped<IPlatformOwnerBootstrapper, PlatformOwnerBootstrapper>();
 builder.Services.AddHttpContextAccessor();
@@ -208,6 +236,8 @@ builder.Services.AddRateLimiter(options =>
         CreateIpPartition(context, 10, TimeSpan.FromMinutes(15)));
     options.AddPolicy("refresh", context =>
         CreateIpPartition(context, 30, TimeSpan.FromMinutes(1)));
+    options.AddPolicy("whatsapp-webhook", context =>
+        CreateIpPartition(context, 120, TimeSpan.FromMinutes(1)));
 });
 
 builder.Services.AddControllers();

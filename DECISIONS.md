@@ -177,3 +177,15 @@ Estas decisiones no están cerradas y no deben inventarse:
 - Flujo disciplinario completo.
 - Política general de anulación y eliminación.
 - Manejo detallado de trabajadores retirados.
+
+## 2026-08-05 — Cola documental de WhatsApp
+
+**Decisión:** las alertas documentales generan eventos y destinos persistentes en PostgreSQL. Un worker hospedado reclama trabajo con `FOR UPDATE SKIP LOCKED`; no se introduce un bus externo.
+
+**Consecuencia:** la deduplicación, los intentos y la recuperación de leases funcionan con varias réplicas. WhatsApp es el único proveedor activo en esta fase.
+
+## 2026-08-05 — Credenciales de integraciones cifradas
+
+**Decisión:** los secretos configurables por tenant se cifran con AES-GCM y una clave maestra externa; los tokens usados solo para comparación se almacenan como hash.
+
+**Consecuencia:** `Integrations__EncryptionKey` debe permanecer estable y nunca se guarda en el repositorio.

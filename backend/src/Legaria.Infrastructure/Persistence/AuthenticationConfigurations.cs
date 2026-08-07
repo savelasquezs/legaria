@@ -50,6 +50,8 @@ internal sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organ
         builder.Property(x => x.Phone).HasMaxLength(20).IsRequired();
         builder.Property(x => x.Address).HasMaxLength(250).IsRequired();
         builder.Property(x => x.MunicipalityCode).HasMaxLength(5).IsFixedLength().IsRequired();
+        builder.Property(x => x.TimeZoneId).HasMaxLength(100).HasDefaultValue("America/Bogota").IsRequired();
+        builder.Property(x => x.NotificationTime).HasDefaultValue(new TimeOnly(8, 0)).IsRequired();
         builder.Property(x => x.Status).HasConversion(
             value => value == OrganizationStatus.Active ? "ACTIVE" : "SUSPENDED",
             value => value == "ACTIVE" ? OrganizationStatus.Active : OrganizationStatus.Suspended);
@@ -131,6 +133,8 @@ internal sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(x => x.DocumentNumber).HasMaxLength(50).IsRequired();
         builder.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
         builder.Property(x => x.LastName).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.MobilePhone).HasMaxLength(16);
+        builder.Property(x => x.ContactEmail).HasMaxLength(320);
         builder.HasIndex(x => new { x.OrganizationId, x.DocumentType, x.DocumentNumber }).IsUnique();
         builder.HasOne<Organization>()
             .WithMany()
@@ -312,6 +316,8 @@ internal sealed class EmployeeDocumentConfiguration : IEntityTypeConfiguration<E
         builder.HasKey(x => x.Id);
         builder.HasAlternateKey(x => new { x.OrganizationId, x.Id });
         builder.HasIndex(x => new { x.OrganizationId, x.EmployeeId, x.DocumentTypeId, x.ReplacedAt });
+        builder.HasIndex(x => new { x.OrganizationId, x.DocumentTypeId, x.ExpiresOn })
+            .HasFilter("replaced_at IS NULL AND expires_on IS NOT NULL");
         builder.HasOne<Employee>().WithMany().HasForeignKey(x => new { x.OrganizationId, x.EmployeeId })
             .HasPrincipalKey(x => new { x.OrganizationId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<DocumentType>().WithMany().HasForeignKey(x => new { x.OrganizationId, x.DocumentTypeId })
@@ -354,6 +360,7 @@ internal sealed class UserAccountConfiguration : IEntityTypeConfiguration<UserAc
         builder.Property(x => x.PasswordHash).HasMaxLength(512).IsRequired();
         builder.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
         builder.Property(x => x.LastName).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.MobilePhone).HasMaxLength(16);
         builder.Property(x => x.Status).HasConversion(
             value => value == AccountStatus.Active ? "ACTIVE" : "SUSPENDED",
             value => value == "ACTIVE" ? AccountStatus.Active : AccountStatus.Suspended);

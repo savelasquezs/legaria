@@ -127,3 +127,15 @@ Evento persistente para operaciones sensibles. No contiene correo, token ni secr
 ## Eliminación
 
 No aplicar soft delete universal. Cada entidad define si usa desactivación, cierre, reemplazo o anulación. Los expedientes y registros históricos no se eliminan normalmente.
+
+## Notificaciones
+
+`WhatsAppChannel` conserva el canal multitenant. Access Token y App Secret se cifran con AES-GCM; el Verify Token se persiste como SHA-256. Phone Number ID y hash de verificación son globalmente únicos.
+
+`WhatsAppTemplate` conserva la copia sincronizada de Meta, incluidos componentes, variables, botones, estado, disponibilidad y hash. `NotificationRule` relaciona tipo documental, canal, plantilla, destinatarios y mapeos; `NotificationRuleSchedule` conserva hasta tres anticipaciones activas y mantiene inactivas las configuraciones ya referenciadas por eventos.
+
+`NotificationEvent` registra una ocurrencia idempotente. `NotificationQueueItem` representa cada destino, `NotificationDeliveryAttempt` conserva intentos y `WhatsAppWebhookReceipt` evita procesar dos veces una actualización de Meta.
+
+La migración `WhatsAppDocumentNotifications` agrega contactos autorizados, zona horaria, canales, plantillas, reglas, eventos, cola, intentos y recibos de webhook.
+
+`NotificationRuleScheduleHistory` permite reemplazar anticipaciones sin romper el historial auditable de notificaciones ya generadas.

@@ -2,6 +2,7 @@ using Legaria.Domain.Authentication;
 using Legaria.Domain.Employees;
 using Legaria.Domain.Documents;
 using Legaria.Domain.Tenancy;
+using Legaria.Domain.Notifications;
 using Microsoft.EntityFrameworkCore;
 
 namespace Legaria.Infrastructure.Persistence;
@@ -30,6 +31,14 @@ public sealed class LegariaDbContext(DbContextOptions<LegariaDbContext> options)
     public DbSet<RefreshSession> RefreshSessions => Set<RefreshSession>();
     public DbSet<AccountToken> AccountTokens => Set<AccountToken>();
     public DbSet<SecurityAuditEvent> SecurityAuditEvents => Set<SecurityAuditEvent>();
+    public DbSet<WhatsAppChannel> WhatsAppChannels => Set<WhatsAppChannel>();
+    public DbSet<WhatsAppTemplate> WhatsAppTemplates => Set<WhatsAppTemplate>();
+    public DbSet<NotificationRule> NotificationRules => Set<NotificationRule>();
+    public DbSet<NotificationRuleSchedule> NotificationRuleSchedules => Set<NotificationRuleSchedule>();
+    public DbSet<NotificationEvent> NotificationEvents => Set<NotificationEvent>();
+    public DbSet<NotificationQueueItem> NotificationQueueItems => Set<NotificationQueueItem>();
+    public DbSet<NotificationDeliveryAttempt> NotificationDeliveryAttempts => Set<NotificationDeliveryAttempt>();
+    public DbSet<WhatsAppWebhookReceipt> WhatsAppWebhookReceipts => Set<WhatsAppWebhookReceipt>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

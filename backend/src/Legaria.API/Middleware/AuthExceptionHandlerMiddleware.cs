@@ -3,6 +3,7 @@ using Legaria.Application.Branches;
 using Legaria.Application.Employees;
 using Legaria.Application.Documents;
 using Legaria.Application.Organizations;
+using Legaria.Application.Notifications;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Legaria.API.Middleware;
@@ -71,6 +72,18 @@ public sealed class AuthExceptionHandlerMiddleware(
             {
                 EmployeeDocumentErrorKind.NotFound => StatusCodes.Status404NotFound,
                 EmployeeDocumentErrorKind.Forbidden => StatusCodes.Status403Forbidden,
+                _ => StatusCodes.Status400BadRequest
+            };
+            await WriteProblemAsync(context, status, exception.Code, exception.Message);
+        }
+        catch (NotificationException exception)
+        {
+            var status = exception.Kind switch
+            {
+                NotificationErrorKind.NotFound => StatusCodes.Status404NotFound,
+                NotificationErrorKind.Conflict => StatusCodes.Status409Conflict,
+                NotificationErrorKind.Forbidden => StatusCodes.Status403Forbidden,
+                NotificationErrorKind.Provider => StatusCodes.Status502BadGateway,
                 _ => StatusCodes.Status400BadRequest
             };
             await WriteProblemAsync(context, status, exception.Code, exception.Message);

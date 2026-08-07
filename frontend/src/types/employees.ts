@@ -34,6 +34,9 @@ export interface Employee {
   documentNumber: string
   firstName: string
   lastName: string
+  mobilePhone?: string | null
+  contactEmail?: string | null
+  whatsAppConsentAt?: string | null
   assignments: EmployeeAssignment[]
   administrativeAccess: EmployeeAdministrativeAccess | null
   createdAt: string
@@ -66,6 +69,9 @@ export interface CreateEmployeeData {
   startedOn: string
   isPrimary: boolean
   administrativeAccess: AdministrativeAccessData | null
+  mobilePhone?: string | null
+  contactEmail?: string | null
+  whatsAppConsent?: boolean
 }
 
 export interface AssignEmployeeData {

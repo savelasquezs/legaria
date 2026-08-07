@@ -17,6 +17,19 @@ public sealed class EmployeeService(
     ITenantInvitationService tenantInvitations,
     IClock clock) : IEmployeeService
 {
+    public async Task<EmployeeDetailResult> UpdateNotificationContactAsync(Guid id, EmployeeNotificationContactInput input, CurrentAccount actor, CancellationToken cancellationToken)
+    {
+        var organizationId = EnsureSuperAdministrator(actor);
+        var employee = await repository.FindAsync(organizationId, id, cancellationToken) ?? throw EmployeeNotFound();
+        var phone = NormalizeNotificationPhone(input.MobilePhone);
+        var email = ValidateOptionalContactEmail(input.ContactEmail);
+        if (input.WhatsAppConsent && phone is null)
+            throw new EmployeeException(EmployeeErrorCodes.InvalidData, "Debes registrar un teléfono antes de autorizar WhatsApp.");
+        employee.UpdateNotificationContact(phone, email, input.WhatsAppConsent, clock.UtcNow);
+        await repository.SaveChangesAsync(cancellationToken);
+        return await GetAsync(id, actor, cancellationToken);
+    }
+
     public async Task<EmployeePage> ListAsync(
         int page,
         int pageSize,
@@ -129,6 +142,10 @@ public sealed class EmployeeService(
         }
 
         var now = clock.UtcNow;
+        var phone = NormalizeNotificationPhone(input.MobilePhone);
+        var contactEmail = ValidateOptionalContactEmail(input.ContactEmail);
+        if (input.WhatsAppConsent && phone is null)
+            throw new EmployeeException(EmployeeErrorCodes.InvalidData, "Debes registrar un teléfono antes de autorizar WhatsApp.");
         var employee = Employee.Create(
             organizationId,
             identity.DocumentType,
@@ -136,6 +153,7 @@ public sealed class EmployeeService(
             identity.FirstName,
             identity.LastName,
             now);
+        employee.UpdateNotificationContact(phone, contactEmail, input.WhatsAppConsent, now);
         var relationship = EmploymentRelationship.Create(organizationId, employee.Id, input.StartedOn, now);
         var assignment = EmployeeAssignment.Create(
             organizationId,
@@ -729,6 +747,9 @@ public sealed class EmployeeService(
             item.Employee.DocumentNumber,
             item.Employee.FirstName,
             item.Employee.LastName,
+            item.Employee.MobilePhone,
+            item.Employee.ContactEmail,
+            item.Employee.WhatsAppConsentAt,
             item.Assignments.Where(assignment => visibleBranchId is null || assignment.Branch.Id == visibleBranchId)
                 .Select(assignment => new EmployeeAssignmentResult(
                 assignment.Assignment.Id,
@@ -758,6 +779,9 @@ public sealed class EmployeeService(
             item.Employee.DocumentNumber,
             item.Employee.FirstName,
             item.Employee.LastName,
+            item.Employee.MobilePhone,
+            item.Employee.ContactEmail,
+            item.Employee.WhatsAppConsentAt,
             item.Relationships.Select(relationship => new EmploymentRelationshipResult(
                 relationship.Relationship.Id,
                 relationship.Relationship.StartedOn,
@@ -878,6 +902,24 @@ public sealed class EmployeeService(
         }
 
         return cleaned;
+    }
+
+    private static string? NormalizeNotificationPhone(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var clean = value.Trim().Replace(" ", string.Empty);
+        if (!System.Text.RegularExpressions.Regex.IsMatch(clean, @"^\+[1-9]\d{7,14}$"))
+            throw new EmployeeException(EmployeeErrorCodes.InvalidData, "El teléfono debe usar formato internacional, por ejemplo +573001234567.");
+        return clean;
+    }
+
+    private static string? ValidateOptionalContactEmail(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var email = value.Trim();
+        if (email.Length > 320 || !MailAddress.TryCreate(email, out var parsed) || !string.Equals(parsed.Address, email, StringComparison.OrdinalIgnoreCase))
+            throw new EmployeeException(EmployeeErrorCodes.InvalidData, "El correo de contacto no es válido.");
+        return email;
     }
 
     private static void ValidatePagination(int page, int pageSize)

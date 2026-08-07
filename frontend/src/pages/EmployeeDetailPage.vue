@@ -21,6 +21,7 @@ import {
   listJobPositions,
   makePrimaryEmployeeAssignment,
   transitionEmployeeAssignment,
+  updateEmployeeNotificationContact,
 } from '../services/employees'
 import type { Branch } from '../types/branches'
 import type { EmployeeAssignment, EmployeeDetail, JobPosition } from '../types/employees'
@@ -42,6 +43,7 @@ const documentSummary = ref<EmployeeDocumentSummary | null>(null)
 const positions = ref<JobPosition[]>([])
 const branches = ref<Branch[]>([])
 const assignmentDialog = ref(false)
+const contactDialog = ref(false)
 const endDialog = ref(false)
 const endRelationshipDialog = ref(false)
 const selectedAssignment = ref<EmployeeAssignment | null>(null)
@@ -51,6 +53,7 @@ const assignmentMode = ref<'add' | 'transition'>('add')
 const endDate = ref(today)
 const form = reactive({ branchId: '', jobPositionId: '', effectiveOn: today, isPrimary: false })
 const documentForm = reactive({ documentTypeId: '', issuedOn: '', expiresOn: '', files: [] as InstanceType<typeof globalThis.File>[], link: '' })
+const contactForm = reactive({ mobilePhone: '', contactEmail: '', whatsAppConsent: false })
 
 const activeRelationship = computed(() => employee.value?.employmentRelationships.find((item) => item.status === 'ACTIVE') ?? null)
 const activeAssignments = computed(() => activeRelationship.value?.assignments.filter((item) => item.status === 'ACTIVE') ?? [])
@@ -127,6 +130,35 @@ async function saveDocument(): Promise<void> {
     Notify.create({ type: 'positive', message: 'Documento cargado.' })
   } catch (error) {
     dialogError.value = getProblem(error)?.detail ?? 'No fue posible cargar el documento.'
+  } finally {
+    saving.value = false
+  }
+}
+
+function openContact(): void {
+  Object.assign(contactForm, {
+    mobilePhone: employee.value?.mobilePhone ?? '',
+    contactEmail: employee.value?.contactEmail ?? '',
+    whatsAppConsent: Boolean(employee.value?.whatsAppConsentAt),
+  })
+  dialogError.value = ''
+  contactDialog.value = true
+}
+
+async function saveContact(): Promise<void> {
+  if (saving.value) return
+  saving.value = true
+  dialogError.value = ''
+  try {
+    employee.value = await updateEmployeeNotificationContact(employeeId.value, {
+      mobilePhone: contactForm.mobilePhone || null,
+      contactEmail: contactForm.contactEmail || null,
+      whatsAppConsent: contactForm.whatsAppConsent,
+    })
+    contactDialog.value = false
+    Notify.create({ type: 'positive', message: 'Contacto de notificaciones actualizado.' })
+  } catch (error) {
+    dialogError.value = getProblem(error)?.detail ?? 'No fue posible actualizar el contacto.'
   } finally {
     saving.value = false
   }
@@ -251,7 +283,7 @@ onMounted(load)
   <TenantLayout>
     <main class="platform-content employee-detail-page">
       <PageHeader context="Trabajadores" :title="employee ? `${employee.firstName} ${employee.lastName}` : 'Detalle del trabajador'" :description="employee ? `${employee.documentType} ${employee.documentNumber}` : 'Relación laboral y asignaciones.'" :back-to="backTo" back-label="Volver">
-        <template v-if="employee && isSuperAdmin" #actions><q-btn unelevated no-caps color="primary" :icon="icons.personAdd" :label="activeRelationship ? 'Nueva asignación' : 'Recontratar y asignar'" @click="openAddAssignment" /></template>
+        <template v-if="employee && isSuperAdmin" #actions><q-btn flat no-caps :icon="icons.notifications" label="Contacto" @click="openContact" /><q-btn unelevated no-caps color="primary" :icon="icons.personAdd" :label="activeRelationship ? 'Nueva asignación' : 'Recontratar y asignar'" @click="openAddAssignment" /></template>
       </PageHeader>
       <LoadingSkeleton v-if="loading" variant="form" :rows="6" />
       <AppAlert v-else-if="errorMessage && !employee" tone="danger">{{ errorMessage }}<template #action><q-btn flat no-caps label="Reintentar" :icon="icons.refresh" @click="load" /></template></AppAlert>
@@ -318,6 +350,16 @@ onMounted(load)
       </template>
     </main>
   </TenantLayout>
+
+  <AppDialog v-if="isSuperAdmin" v-model="contactDialog" title="Contacto de notificaciones" description="El consentimiento es obligatorio para enviar WhatsApp." :icon="icons.notifications" :persistent="saving">
+    <AppAlert v-if="dialogError" tone="danger">{{ dialogError }}</AppAlert>
+    <q-form class="compact-upload-form" @submit.prevent="saveContact">
+      <q-input v-model="contactForm.mobilePhone" outlined dense label="Teléfono móvil" hint="Formato +573001234567" />
+      <q-input v-model="contactForm.contactEmail" outlined dense type="email" label="Correo de contacto" />
+      <q-checkbox v-model="contactForm.whatsAppConsent" dense label="El trabajador autorizó notificaciones por WhatsApp" />
+      <q-card-actions align="right" class="q-px-none q-pt-sm"><q-btn flat dense no-caps label="Cancelar" :disable="saving" @click="contactDialog = false" /><q-btn unelevated dense no-caps color="primary" type="submit" label="Guardar" :loading="saving" /></q-card-actions>
+    </q-form>
+  </AppDialog>
 
   <AppDialog v-model="documentDialog" :title="`Cargar · ${selectedDocumentCategory?.name ?? ''}`" description="Registra una nueva versión documental." :icon="icons.upload" size="md" :persistent="saving">
     <AppAlert v-if="dialogError" tone="danger">{{ dialogError }}</AppAlert>

@@ -108,6 +108,12 @@ export const router = createRouter({
       meta: { accountType: 'TENANT', roles: ['SUPER_ADMIN', 'BRANCH_ADMIN'] },
     },
     {
+      path: '/app/notifications',
+      name: 'tenant-notifications',
+      component: () => import('../pages/NotificationsPage.vue'),
+      meta: { accountType: 'TENANT', roles: ['SUPER_ADMIN'] },
+    },
+    {
       path: '/app/employees/:id',
       name: 'tenant-employee-detail',
       component: () => import('../pages/EmployeeDetailPage.vue'),
